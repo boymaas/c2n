@@ -9,6 +9,7 @@ impl Future for SimStorage {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        eprintln!("Simulating storage...");
         Poll::Ready(())
     }
 }
@@ -31,6 +32,7 @@ impl Future for SimNetwork {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        eprintln!("Simulating network...");
         Poll::Ready(())
     }
 }
@@ -50,7 +52,7 @@ fn main() -> anyhow::Result<()> {
 
     let network = SimNetwork;
 
-    for i in 0..10 {
+    for _ in 0..10 {
         let storage = SimStorage;
         let network = network.clone();
         simulation.add_node(Node::new(network, storage));
