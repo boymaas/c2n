@@ -18,5 +18,5 @@ remove_nested_parens = true
 reorder_modules = true
 unstable_features = true
 use_field_init_shorthand = true
-imports_granularity = "Crate"
+# imports_granularity = "Crate"
 

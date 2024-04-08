@@ -1,66 +1,94 @@
-use std::{pin::Pin, task::{Context, Poll}};
+use {
+  c2n::{
+    node::{Node, Noop},
+    node_config::NodeConfigBuilder,
+    simulation_executor::SimulationExecutor,
+  },
+  futures::Future,
+  rand::SeedableRng,
+  std::{
+    pin::Pin,
+    task::{Context, Poll},
+  },
+};
 
-use c2n::{node::Node, simulation_executor::SimulationExecutor};
-use futures::Future;
-
-struct SimStorage; 
+struct SimStorage;
 
 impl Future for SimStorage {
-    type Output = ();
+  type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        eprintln!("Simulating storage...");
-        Poll::Ready(())
-    }
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    eprintln!("Simulating storage...");
+    Poll::Ready(())
+  }
 }
 
 impl c2n::storage::Storage for SimStorage {
-    fn read(&mut self) -> String {
-        String::new()
-    }
+  fn read(&mut self) -> String {
+    String::new()
+  }
 
-    fn write(&mut self, message: String) {
-        println!("Writing message: {}", message);
-    }
+  fn write(&mut self, message: String) {
+    println!("Writing message: {}", message);
+  }
 }
-
 
 #[derive(Clone)]
 struct SimNetwork;
 
 impl Future for SimNetwork {
-    type Output = ();
+  type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        eprintln!("Simulating network...");
-        Poll::Ready(())
-    }
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    eprintln!("Simulating network...");
+    Poll::Ready(())
+  }
 }
 
 impl c2n::network::Network for SimNetwork {
-    fn send(&mut self, message: String) {
-        println!("Sending message: {}", message);
-    }
+  fn send(&mut self, message: String) {
+    println!("Sending message: {}", message);
+  }
 
-    fn receive(&mut self) -> Vec<String> {
-        vec![]
-    }
+  fn receive(&mut self) -> Vec<String> {
+    vec![]
+  }
 }
 
+const NODE_COUNT: usize = 10;
+
 fn main() -> anyhow::Result<()> {
-    let mut simulation = SimulationExecutor::new();
+  let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
 
-    let network = SimNetwork;
+  let mut simulation = SimulationExecutor::new();
 
-    for _ in 0..10 {
-        let storage = SimStorage;
-        let network = network.clone();
-        simulation.add_node(Node::new(network, storage));
-    }
+  let network = SimNetwork;
 
-    for _ in 0..10 {
-        simulation.run_tick();
-    }
+  let bootnode_config = NodeConfigBuilder::new()
+    .with_unique_identity(&mut rng)
+    .build();
+  let bootnode = Node::builder()
+    .network(network.clone())
+    .storage(SimStorage)
+    .with_node_config(bootnode_config)
+    .build();
 
-    Ok(())
+  for _ in 0..NODE_COUNT {
+    let config = NodeConfigBuilder::new()
+      .with_bootnode(bootnode.config().identity)
+      .with_unique_identity(&mut rng)
+      .build();
+    let node = Node::builder()
+      .network(network.clone())
+      .storage(SimStorage)
+      .with_node_config(config)
+      .build();
+    simulation.add_node(node);
+  }
+
+  for _ in 0..10 {
+    simulation.run_tick();
+  }
+
+  Ok(())
 }
