@@ -14,6 +14,12 @@ pub struct NodeConfigBuilder {
   identity: Option<NodeIdentity>,
 }
 
+impl Default for NodeConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeConfigBuilder {
   pub fn new() -> Self {
     Self {

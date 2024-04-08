@@ -1,6 +1,6 @@
 use {
   c2n::{
-    node::{Node, Noop},
+    node::Node,
     node_config::NodeConfigBuilder,
     simulation_executor::SimulationExecutor,
   },
@@ -17,7 +17,7 @@ struct SimStorage;
 impl Future for SimStorage {
   type Output = ();
 
-  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+  fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
     eprintln!("Simulating storage...");
     Poll::Ready(())
   }
@@ -39,7 +39,7 @@ struct SimNetwork;
 impl Future for SimNetwork {
   type Output = ();
 
-  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+  fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
     eprintln!("Simulating network...");
     Poll::Ready(())
   }

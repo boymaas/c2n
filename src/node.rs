@@ -12,32 +12,7 @@ use {
   },
 };
 
-pub struct Noop;
-impl Future for Noop {
-  type Output = ();
-
-  fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-    Poll::Ready(())
-  }
-}
-
-impl Network for Noop {
-  fn send(&mut self, _message: String) {}
-
-  fn receive(&mut self) -> Vec<String> {
-    Vec::new()
-  }
-}
-
-impl Storage for Noop {
-  fn write(&mut self, _data: String) {}
-
-  fn read(&mut self) -> String {
-    String::new()
-  }
-}
-
-pub struct Node<N = Noop, S = Noop>
+pub struct Node<N, S>
 where
   N: Network,
   S: Storage,
@@ -94,6 +69,16 @@ pub struct NodeBuilder<N, S> {
   config: Option<NodeConfig>,
   network: Option<N>,
   storage: Option<S>,
+}
+
+impl<N, S> Default for NodeBuilder<N, S>
+where
+  N: Network,
+  S: Storage,
+{
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 impl<N, S> NodeBuilder<N, S>

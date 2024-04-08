@@ -8,6 +8,12 @@ pub struct SimulationExecutor {
     nodes: Vec<Pin<Box<dyn Future<Output = ()>>>>,
 }
 
+impl Default for SimulationExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimulationExecutor {
     pub fn new() -> Self {
         SimulationExecutor { nodes: Vec::new() }
