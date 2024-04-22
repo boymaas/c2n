@@ -15,9 +15,9 @@ pub struct NodeConfigBuilder {
 }
 
 impl Default for NodeConfigBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 impl NodeConfigBuilder {
