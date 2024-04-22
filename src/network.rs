@@ -1,4 +1,5 @@
 pub mod memory;
+pub mod sim;
 
 use std::future::Future;
 

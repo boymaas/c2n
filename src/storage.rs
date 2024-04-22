@@ -1,3 +1,5 @@
+pub mod sim;
+
 use std::future::Future;
 
 pub trait Storage: Future<Output = ()> {
