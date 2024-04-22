@@ -3,6 +3,7 @@ use {
     network::sim::SimNetwork,
     node::Node,
     node_config::NodeConfigBuilder,
+    peer_list_manager::SimplePeerListManager,
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
@@ -19,6 +20,7 @@ fn main() -> anyhow::Result<()> {
   let mut simulation = SimulationExecutor::new();
 
   let network = SimNetwork;
+  let peer_list_manager = SimplePeerListManager::new();
 
   let bootnode_config = NodeConfigBuilder::new()
     .with_unique_identity(&mut rng)
@@ -26,6 +28,7 @@ fn main() -> anyhow::Result<()> {
   let bootnode = Node::builder()
     .network(network.clone())
     .storage(SimStorage)
+    .peer_list_manager(SimplePeerListManager::new())
     .with_node_config(bootnode_config)
     .build();
 
@@ -37,6 +40,7 @@ fn main() -> anyhow::Result<()> {
     let node = Node::builder()
       .network(network.clone())
       .storage(SimStorage)
+      .peer_list_manager(SimplePeerListManager::new())
       .with_node_config(config)
       .build();
     simulation.add_node(node);

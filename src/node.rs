@@ -2,6 +2,7 @@ use {
   crate::{
     network::Network,
     node_config::{NodeConfig, NodeConfigBuilder},
+    peer_list_manager::PeerListManager,
     storage::Storage,
   },
   futures::ready,
@@ -12,22 +13,25 @@ use {
   },
 };
 
-pub struct Node<N, S>
+pub struct Node<N, S, P>
 where
   N: Network,
   S: Storage,
+  P: PeerListManager,
 {
   config: NodeConfig,
   network: N,
   storage: S,
+  peer_list_manager: P,
 }
 
-impl<N, S> Node<N, S>
+impl<N, S, P> Node<N, S, P>
 where
   N: Network,
   S: Storage,
+  P: PeerListManager,
 {
-  pub fn builder() -> NodeBuilder<N, S> {
+  pub fn builder() -> NodeBuilder<N, S, P> {
     NodeBuilder::new()
   }
 
@@ -40,10 +44,11 @@ where
   }
 }
 
-impl<N, S> Future for Node<N, S>
+impl<N, S, P> Future for Node<N, S, P>
 where
   N: Network + Unpin,
   S: Storage + Unpin,
+  P: PeerListManager + Unpin,
 {
   type Output = ();
 
@@ -65,31 +70,35 @@ where
 }
 
 // Builder pattern for Node
-pub struct NodeBuilder<N, S> {
+pub struct NodeBuilder<N, S, P> {
   config: Option<NodeConfig>,
   network: Option<N>,
   storage: Option<S>,
+  peer_list_manager: Option<P>,
 }
 
-impl<N, S> Default for NodeBuilder<N, S>
+impl<N, S, P> Default for NodeBuilder<N, S, P>
 where
   N: Network,
   S: Storage,
+  P: PeerListManager,
 {
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl<N, S> NodeBuilder<N, S>
+impl<N, S, P> NodeBuilder<N, S, P>
 where
   N: Network,
   S: Storage,
+  P: PeerListManager,
 {
   pub fn new() -> Self {
     Self {
       network: None,
       storage: None,
+      peer_list_manager: None,
       config: None,
     }
   }
@@ -112,11 +121,19 @@ where
     self
   }
 
-  pub fn build(self) -> Node<N, S> {
+  pub fn peer_list_manager(mut self, peer_list_manager: P) -> Self {
+    self.peer_list_manager = Some(peer_list_manager);
+    self
+  }
+
+  pub fn build(self) -> Node<N, S, P> {
     Node {
       config: self.config.expect("Node configuration is required"),
       network: self.network.expect("Network component is required"),
       storage: self.storage.expect("Storage component is required"),
+      peer_list_manager: self
+        .peer_list_manager
+        .expect("Peer list manager is required"),
     }
   }
 }

@@ -1,5 +1,10 @@
 use {
-  crate::{network::Network, node::Node, storage::Storage},
+  crate::{
+    network::Network,
+    node::Node,
+    peer_list_manager::PeerListManager,
+    storage::Storage,
+  },
   futures::Future,
   std::{pin::Pin, task::Context},
 };
@@ -19,10 +24,11 @@ impl SimulationExecutor {
     SimulationExecutor { nodes: Vec::new() }
   }
 
-  pub fn add_node<N, S>(&mut self, node: Node<N, S>)
+  pub fn add_node<N, S, P>(&mut self, node: Node<N, S, P>)
   where
     N: Network + Unpin + 'static,
     S: Storage + Unpin + 'static,
+    P: PeerListManager + Unpin + 'static,
   {
     self.nodes.push(Box::pin(node));
   }
