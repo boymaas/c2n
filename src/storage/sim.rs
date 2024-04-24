@@ -7,9 +7,11 @@ use {
   },
 };
 
-pub struct SimStorage;
+pub struct SimStorage<R> {
+  rng: R,
+}
 
-impl Future for SimStorage {
+impl<R> Future for SimStorage<R> {
   type Output = ();
 
   fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -18,12 +20,18 @@ impl Future for SimStorage {
   }
 }
 
-impl Storage for SimStorage {
+impl<R> Storage for SimStorage<R> {
   fn read(&mut self) -> String {
     String::new()
   }
 
   fn write(&mut self, date: String) {
     println!("Writing message: {}", date);
+  }
+}
+
+impl<R> SimStorage<R> {
+  pub fn build(rng: R) -> Self {
+    SimStorage { rng }
   }
 }

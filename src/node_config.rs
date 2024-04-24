@@ -38,7 +38,7 @@ impl NodeConfigBuilder {
     self
   }
 
-  pub fn with_unique_identity(mut self, rng: &mut impl Rng) -> Self {
+  pub fn with_unique_identity<R: Rng>(mut self, rng: &mut R) -> Self {
     self.identity = Some(NodeIdentity::unique(rng));
     self
   }

@@ -7,7 +7,7 @@ pub struct Pubkey {
 
 impl Pubkey {
   // generate a new random key
-  pub fn unique(rng: &mut impl Rng) -> Self {
+  pub fn unique<R: Rng>(rng: &mut R) -> Self {
     // generate a random key
     Pubkey { key: rng.gen() }
   }
