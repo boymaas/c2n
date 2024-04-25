@@ -1,6 +1,9 @@
 use {
   super::NetworkEvent,
-  crate::{network::Network, types::PeerId},
+  crate::{
+    network::Network,
+    types::{NodeAddress, PeerId},
+  },
   futures::Future,
   rand::{rngs::StdRng, Rng},
   std::{
@@ -27,7 +30,15 @@ use crate::primitives::Pubkey;
 
 impl<R: Rng> Network for SimNetwork<R> {
   fn send(&mut self, peer_id: PeerId, message: String) {
-    println!("Sending message: {} to peer_id {:?}", message, peer_id);
+    tracing::debug!("Sending message: {} to peer_id {:?}", message, peer_id);
+  }
+
+  fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress) {
+    tracing::debug!("Adding peer_id: {:?} with address: {:?}", peer_id, addr);
+  }
+
+  fn connect(&mut self, peer_id: PeerId) {
+    tracing::debug!("Connecting to peer_id: {:?}", peer_id);
   }
 }
 

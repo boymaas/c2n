@@ -2,7 +2,7 @@ use {
   crate::{
     network::{Network, NetworkEvent},
     primitives::Pubkey,
-    types::PeerId,
+    types::{NodeAddress, PeerId},
   },
   futures::Future,
   std::{
@@ -33,6 +33,14 @@ impl Future for MemoryNetwork {
 }
 
 impl Network for MemoryNetwork {
+  fn connect(&mut self, _peer_id: PeerId) {
+    // Simulate connecting to a peer
+  }
+
+  fn add_peer(&mut self, _peer_id: Pubkey, _addr: NodeAddress) {
+    // Simulate adding a peer
+  }
+
   fn send(&mut self, _peer_id: PeerId, _message: String) {
     // Simulate sending a message
   }

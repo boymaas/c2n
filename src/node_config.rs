@@ -1,7 +1,8 @@
-use {crate::primitives::Pubkey, rand::Rng, std::collections::HashSet};
-
-pub type NodeAddress = Pubkey;
-pub type NodeIdentity = Pubkey;
+use {
+  crate::types::{NodeAddress, NodeIdentity},
+  rand::Rng,
+  std::collections::HashSet,
+};
 
 pub struct NodeConfig {
   pub bootnodes: HashSet<NodeAddress>,
