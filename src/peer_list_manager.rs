@@ -1,16 +1,9 @@
 pub mod simple;
 
 use {
+  crate::types::{PeerId, PeerReputation},
   futures::Future,
-  std::{
-    collections::HashMap,
-    pin::Pin,
-    task::{Context, Poll},
-  },
 };
-
-pub type PeerId = String;
-pub type PeerReputation = i32;
 
 pub trait PeerListManager: Future<Output = ()> {
   fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation);

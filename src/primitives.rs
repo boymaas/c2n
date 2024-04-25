@@ -1,6 +1,6 @@
 use rand::Rng;
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct Pubkey {
   key: [u8; 32],
 }
