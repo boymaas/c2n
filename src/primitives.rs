@@ -1,4 +1,10 @@
-use rand::Rng;
+use {
+  crate::{b58::Base58Encode, types::NodeAddress},
+  core::fmt,
+  multiaddr::Multiaddr,
+  rand::Rng,
+  std::fmt::{Display, Formatter},
+};
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct Pubkey {
@@ -10,5 +16,19 @@ impl Pubkey {
   pub fn unique<R: Rng>(rng: &mut R) -> Self {
     // generate a random key
     Pubkey { key: rng.gen() }
+  }
+
+  pub fn to_bytes(&self) -> [u8; 32] {
+    self.key
+  }
+
+  pub fn into_node_address(&self, addr: Multiaddr) -> NodeAddress {
+    (self.clone(), addr)
+  }
+}
+
+impl Display for Pubkey {
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    write!(f, "{}", self.bs58_encode())
   }
 }

@@ -1,3 +1,5 @@
+use multiaddr::Multiaddr;
+
 // Re-export `Pubkey` from the `primitives` module for external use.
 pub use crate::primitives::Pubkey;
 
@@ -11,7 +13,7 @@ pub type PeerReputation = i32;
 
 // `NodeAddress` is a type alias for a public key representing the address of a
 // node in the network.
-pub type NodeAddress = Pubkey;
+pub type NodeAddress = (Pubkey, Multiaddr);
 
 // `NodeIdentity` is a type alias for a public key used to identify a node
 // uniquely.

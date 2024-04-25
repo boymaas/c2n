@@ -36,13 +36,18 @@ fn main() -> anyhow::Result<()> {
     .with_node_config(bootnode_config)
     .build();
 
+  let bootnode_addr = bootnode
+    .config()
+    .identity()
+    .into_node_address("/memory/0".parse().unwrap());
+
   for _ in 0..NODE_COUNT {
     // Each time a unique identity is generated,
     // the random number generator will be seeded at a new position,
     // giving each node a unique starting sequence.
     let mut rng = rng.next_rng_seed();
     let config = NodeConfigBuilder::new()
-      .with_bootnode(bootnode.config().identity)
+      .with_bootnode(bootnode_addr.clone())
       .with_unique_identity(&mut rng)
       .build();
     let node = Node::builder()

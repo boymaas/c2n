@@ -9,6 +9,20 @@ pub struct NodeConfig {
   pub identity: NodeIdentity,
 }
 
+impl NodeConfig {
+  pub fn builder() -> NodeConfigBuilder {
+    NodeConfigBuilder::new()
+  }
+
+  pub fn bootnodes(&self) -> &HashSet<NodeAddress> {
+    &self.bootnodes
+  }
+
+  pub fn identity(&self) -> &NodeIdentity {
+    &self.identity
+  }
+}
+
 /// Builder pattern for NodeConfig
 pub struct NodeConfigBuilder {
   bootnodes: HashSet<NodeAddress>,

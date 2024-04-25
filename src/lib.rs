@@ -1,3 +1,4 @@
+pub mod b58;
 pub mod network;
 pub mod node;
 pub mod node_config;
