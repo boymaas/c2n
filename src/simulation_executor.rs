@@ -2,6 +2,7 @@ use {
   crate::{
     network::Network,
     node::Node,
+    node_events::NodeEvent,
     peer_list_manager::PeerListManager,
     storage::Storage,
   },
@@ -10,7 +11,7 @@ use {
 };
 
 pub struct SimulationExecutor {
-  nodes: Vec<Pin<Box<dyn Future<Output = ()>>>>,
+  nodes: Vec<Pin<Box<dyn Future<Output = NodeEvent>>>>,
 }
 
 impl Default for SimulationExecutor {

@@ -2,17 +2,16 @@ use crate::primitives::Pubkey;
 
 pub enum NodeEvent {
   /// The node has successfully dialed and connected to a peer.
-  Connected { peer_id: Pubkey },
+  PeerConnected { peer_id: Pubkey },
   /// The node has disconnected from a peer.
-  Disconnected { peer_id: Pubkey },
+  PeerDisconnected { peer_id: Pubkey },
   /// The node has discovered a new peer through the discovery mechanism.
   Discovered { peer_id: Pubkey },
-  /// The node has received a message from a peer.
-  MessageReceived { peer_id: Pubkey, message: Vec<u8> },
-  /// The node has successfully sent a message to a peer.
-  MessageSent { peer_id: Pubkey },
   /// The node has entered a new state in the lifecycle.
   StateChanged { new_state: NodeState },
+  /// Noop event to return from the future and let the runtime
+  /// poll the future again
+  Noop,
 }
 
 pub enum NodeState {

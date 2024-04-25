@@ -1,11 +1,12 @@
 use {
   crate::{
-    network::Network,
+    network::{Network, NetworkEvent},
     node_config::{NodeConfig, NodeConfigBuilder},
+    node_events::NodeEvent,
     peer_list_manager::PeerListManager,
     storage::Storage,
   },
-  futures::ready,
+  futures::{future::FutureExt, ready},
   std::{
     future::Future,
     pin::Pin,
@@ -50,18 +51,33 @@ where
   S: Storage + Unpin,
   P: PeerListManager + Unpin,
 {
-  type Output = ();
+  type Output = NodeEvent;
 
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     let this = self.get_mut();
-    // Example of progressing network and storage components.
-    // Here, you'd likely manage state transitions or operations
-    // that need to happen over multiple ticks.
 
-    // For demonstration, assume we simply call poll on both
-    // components to simulate progressing their states.
-    ready!(Pin::new(&mut this.network).poll(cx));
-    ready!(Pin::new(&mut this.storage).poll(cx));
+    // handle the network event
+    if let Poll::Ready(network_event) = this.network.poll_unpin(cx) {
+      match network_event {
+        NetworkEvent::PeerConnected { peer_id } => {
+          tracing::debug!("PeerConnected: {:?}", peer_id);
+          return Poll::Ready(NodeEvent::PeerConnected { peer_id });
+        }
+        NetworkEvent::PeerDisconnected { peer_id } => {
+          tracing::debug!("PeerDisconnected: {:?}", peer_id);
+          return Poll::Ready(NodeEvent::PeerDisconnected { peer_id });
+        }
+        NetworkEvent::MessageReceived { peer_id, message } => {
+          tracing::debug!("MessageReceived from {:?}: {:?}", peer_id, message);
+          return Poll::Ready(NodeEvent::Noop);
+        }
+      }
+    }
+
+    // handle the storage events
+    if let Poll::Ready(()) = this.storage.poll_unpin(cx) {
+      // Storage has completed its work
+    }
 
     // This example does not complete, to illustrate ongoing processing.
     // Adjust according to your simulation's end conditions.
