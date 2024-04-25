@@ -1,5 +1,6 @@
 use {
   crate::types::{NodeAddress, NodeIdentity},
+  multiaddr::Multiaddr,
   rand::Rng,
   std::collections::HashSet,
 };
@@ -7,6 +8,7 @@ use {
 pub struct NodeConfig {
   pub bootnodes: HashSet<NodeAddress>,
   pub identity: NodeIdentity,
+  pub address: Multiaddr,
 }
 
 impl NodeConfig {
@@ -27,6 +29,7 @@ impl NodeConfig {
 pub struct NodeConfigBuilder {
   bootnodes: HashSet<NodeAddress>,
   identity: Option<NodeIdentity>,
+  address: Option<Multiaddr>,
 }
 
 impl Default for NodeConfigBuilder {
@@ -40,6 +43,7 @@ impl NodeConfigBuilder {
     Self {
       bootnodes: HashSet::new(),
       identity: None,
+      address: None,
     }
   }
 
@@ -53,6 +57,11 @@ impl NodeConfigBuilder {
     self
   }
 
+  pub fn with_address(mut self, address: Multiaddr) -> Self {
+    self.address = Some(address);
+    self
+  }
+
   pub fn with_unique_identity<R: Rng>(mut self, rng: &mut R) -> Self {
     self.identity = Some(NodeIdentity::unique(rng));
     self
@@ -62,6 +71,7 @@ impl NodeConfigBuilder {
     NodeConfig {
       bootnodes: self.bootnodes,
       identity: self.identity.expect("Node identity is required"),
+      address: self.address.expect("Node address is required"),
     }
   }
 }

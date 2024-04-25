@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     .identity()
     .into_node_address("/memory/0".parse().unwrap());
 
-  for _ in 0..NODE_COUNT {
+  for idx in 0..NODE_COUNT {
     // Each time a unique identity is generated,
     // the random number generator will be seeded at a new position,
     // giving each node a unique starting sequence.
@@ -49,6 +49,7 @@ fn main() -> anyhow::Result<()> {
     let config = NodeConfigBuilder::new()
       .with_bootnode(bootnode_addr.clone())
       .with_unique_identity(&mut rng)
+      .with_address(format!("/memory/{}", idx + 1).parse().unwrap())
       .build();
     let node = Node::builder()
       .network(network.clone())
