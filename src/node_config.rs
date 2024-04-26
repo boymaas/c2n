@@ -23,6 +23,10 @@ impl NodeConfig {
   pub fn identity(&self) -> &NodeIdentity {
     &self.identity
   }
+
+  pub fn node_address(&self) -> NodeAddress {
+    (self.identity.clone(), self.address.clone())
+  }
 }
 
 /// Builder pattern for NodeConfig

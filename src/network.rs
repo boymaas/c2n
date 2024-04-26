@@ -14,7 +14,7 @@ use {
 pub trait Network: Future<Output = NetworkEvent> {
   fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress);
   fn connect(&mut self, peer_id: PeerId);
-  fn send(&mut self, peer_id: Pubkey, message: String);
+  fn send(&mut self, peer_id: Pubkey, message: Vec<u8>);
 }
 
 pub enum NetworkEvent {

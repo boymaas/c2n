@@ -29,8 +29,12 @@ impl<R> Future for SimNetwork<R> {
 use crate::primitives::Pubkey;
 
 impl<R: Rng> Network for SimNetwork<R> {
-  fn send(&mut self, peer_id: PeerId, message: String) {
-    tracing::debug!("Sending message: {} to peer_id {:?}", message, peer_id);
+  fn send(&mut self, peer_id: PeerId, message: Vec<u8>) {
+    tracing::debug!(
+      "Sending message: {} to peer_id {:?}",
+      message.len(),
+      peer_id
+    );
   }
 
   fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress) {

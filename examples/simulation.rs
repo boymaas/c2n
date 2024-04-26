@@ -28,6 +28,7 @@ fn main() -> anyhow::Result<()> {
 
   let bootnode_config = NodeConfigBuilder::new()
     .with_unique_identity(&mut rng)
+    .with_address("/memory/0".parse().unwrap())
     .build();
   let bootnode = Node::builder()
     .network(SimNetwork::build(rng.clone()))
@@ -36,10 +37,8 @@ fn main() -> anyhow::Result<()> {
     .with_node_config(bootnode_config)
     .build();
 
-  let bootnode_addr = bootnode
-    .config()
-    .identity()
-    .into_node_address("/memory/0".parse().unwrap());
+  // Get the address of the bootnode so that other nodes can connect to it.
+  let bootnode_addr = bootnode.config().node_address();
 
   for idx in 0..NODE_COUNT {
     // Each time a unique identity is generated,
