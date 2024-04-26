@@ -59,6 +59,7 @@ dependencies = [
  "futures",
  "multiaddr",
  "rand",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
 ]

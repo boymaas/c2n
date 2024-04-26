@@ -1,6 +1,6 @@
 use {
   c2n::{
-    network::sim::SimNetwork,
+    network::sim::{SimNetwork, SimNetworkClient},
     node::Node,
     node_config::NodeConfigBuilder,
     peer_list_manager::simple::SimplePeerListManager,
@@ -8,8 +8,8 @@ use {
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
-  rand::{rngs::StdRng, RngCore, SeedableRng},
-  std::{cell::RefCell, rc::Rc},
+  rand::{rngs::StdRng, SeedableRng},
+  std::rc::Rc,
 };
 
 const NODE_COUNT: usize = 10;
@@ -24,14 +24,18 @@ fn main() -> anyhow::Result<()> {
 
   let mut simulation = SimulationExecutor::new();
 
-  let network = SimNetwork::build(rng.clone());
+  let network = SimNetwork::build();
 
   let bootnode_config = NodeConfigBuilder::new()
     .with_unique_identity(&mut rng)
     .with_address("/memory/0".parse().unwrap())
     .build();
   let bootnode = Node::builder()
-    .network(SimNetwork::build(rng.clone()))
+    .network(SimNetworkClient::build(
+      rng.clone(),
+      Rc::clone(&network),
+      bootnode_config.node_address(),
+    ))
     .storage(SimStorage::build(rng.clone()))
     .peer_list_manager(SimplePeerListManager::build(rng.clone()))
     .with_node_config(bootnode_config)
@@ -51,7 +55,11 @@ fn main() -> anyhow::Result<()> {
       .with_address(format!("/memory/{}", idx + 1).parse().unwrap())
       .build();
     let node = Node::builder()
-      .network(network.clone())
+      .network(SimNetworkClient::build(
+        rng.clone(),
+        Rc::clone(&network),
+        bootnode_addr.clone(),
+      ))
       .storage(SimStorage::build(rng.next_rng_seed()))
       .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
       .with_node_config(config)

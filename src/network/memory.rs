@@ -1,4 +1,5 @@
 use {
+  super::NetworkResult,
   crate::{
     network::{Network, NetworkEvent},
     primitives::Pubkey,
@@ -33,15 +34,17 @@ impl Future for MemoryNetwork {
 }
 
 impl Network for MemoryNetwork {
-  fn connect(&mut self, _peer_id: PeerId) {
+  fn connect(&mut self, _peer_id: PeerId) -> NetworkResult<()> {
     // Simulate connecting to a peer
+    Ok(())
   }
 
   fn add_peer(&mut self, _peer_id: Pubkey, _addr: NodeAddress) {
     // Simulate adding a peer
   }
 
-  fn send(&mut self, _peer_id: PeerId, _message: Vec<u8>) {
+  fn send(&mut self, _peer_id: PeerId, _message: Vec<u8>) -> NetworkResult<()> {
     // Simulate sending a message
+    Ok(())
   }
 }

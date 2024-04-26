@@ -7,14 +7,25 @@ use {
     types::{NodeAddress, PeerId},
   },
   std::future::Future,
+  thiserror::Error,
 };
+
+#[derive(Debug, Error)]
+pub enum NetworkError {
+  #[error("peer not found")]
+  PeerNotFound,
+  #[error("not connected")]
+  NotConnected,
+}
+
+pub type NetworkResult<T> = Result<T, NetworkError>;
 
 /// A network interface that can send and receive messages and emit network
 /// events.
 pub trait Network: Future<Output = NetworkEvent> {
   fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress);
-  fn connect(&mut self, peer_id: PeerId);
-  fn send(&mut self, peer_id: Pubkey, message: Vec<u8>);
+  fn connect(&mut self, peer_id: PeerId) -> NetworkResult<()>;
+  fn send(&mut self, peer_id: Pubkey, message: Vec<u8>) -> NetworkResult<()>;
 }
 
 pub enum NetworkEvent {
