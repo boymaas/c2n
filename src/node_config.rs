@@ -1,5 +1,5 @@
 use {
-  crate::types::{NodeAddress, NodeIdentity},
+  crate::types::{NodeAddress, NodeIdentity, PeerId},
   multiaddr::Multiaddr,
   rand::Rng,
   std::collections::HashSet,
@@ -20,7 +20,7 @@ impl NodeConfig {
     &self.bootnodes
   }
 
-  pub fn identity(&self) -> &NodeIdentity {
+  pub fn identity(&self) -> &PeerId {
     &self.identity
   }
 

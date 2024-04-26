@@ -6,13 +6,24 @@ use {
     peer_list_manager::PeerListManager,
     storage::Storage,
   },
-  futures::{future::FutureExt, ready},
+  futures::future::FutureExt,
   std::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
   },
 };
+
+#[derive(Default)]
+pub enum NodeState {
+  #[default]
+  Booting,
+  Connecting,
+  Joining,
+  Running,
+  Leaving,
+  Stopped,
+}
 
 pub struct Node<N, S, P>
 where
@@ -24,6 +35,8 @@ where
   network: N,
   storage: S,
   peer_list_manager: P,
+
+  state: NodeState,
 }
 
 impl<N, S, P> Node<N, S, P>
@@ -45,19 +58,43 @@ where
   }
 }
 
-impl<N, S, P> Future for Node<N, S, P>
+impl<N, S, P> Node<N, S, P>
 where
   N: Network + Unpin,
-  S: Storage + Unpin,
-  P: PeerListManager + Unpin,
+  S: Storage,
+  P: PeerListManager,
 {
-  type Output = NodeEvent;
+  /// When the node is in the booting state, it will attempt to connect to the
+  /// bootnode and activate the peer list manager to enable connections with
+  /// the peers of the network
+  fn poll_booting(&mut self, _cx: &mut Context<'_>) -> Poll<NodeEvent> {
+    // let first make sure we connect to the bootnode
+    // and discover enough other peers to try to join our consensus.
+    for (peer_id, _) in self.config.bootnodes() {
+      self
+        .network
+        .connect(*peer_id)
+        .expect("Failed to connect to bootnode");
+    }
 
-  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-    let this = self.get_mut();
+    // move to the next state, waiting for dialing to succeed
+    // and to connect to a certain amount of peers
+    self.state = NodeState::Connecting;
+
+    Poll::Ready(NodeEvent::Noop)
+  }
+
+  /// The node tries to connect to the bootnodes and tries to discover the
+  /// network
+  fn poll_connecting(&mut self, cx: &mut Context<'_>) -> Poll<NodeEvent> {
+    // check if we have enough peers to join the network
+    // if self.peer_list_manager.has_enough_peers() {
+    //   // move to the next state
+    //   self.state = NodeState::Joining;
+    // }
 
     // handle the network event
-    if let Poll::Ready(network_event) = this.network.poll_unpin(cx) {
+    if let Poll::Ready(network_event) = self.network.poll_unpin(cx) {
       match network_event {
         NetworkEvent::PeerConnected { peer_id } => {
           tracing::debug!("PeerConnected: {:?}", peer_id);
@@ -71,6 +108,46 @@ where
           tracing::debug!("MessageReceived from {:?}: {:?}", peer_id, message);
           return Poll::Ready(NodeEvent::Noop);
         }
+        NetworkEvent::DialSucces { peer_id } => {
+          tracing::debug!("DialSucces: {}", peer_id);
+        }
+        NetworkEvent::DialFailed { peer_id } => {
+          tracing::error!("DialFailed: {}", peer_id);
+        }
+      }
+    }
+
+    Poll::Pending
+  }
+}
+
+impl<N, S, P> Future for Node<N, S, P>
+where
+  N: Network + Unpin,
+  S: Storage + Unpin,
+  P: PeerListManager + Unpin,
+{
+  type Output = NodeEvent;
+
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    let this = self.get_mut();
+
+    match this.state {
+      NodeState::Booting => {
+        return this.poll_booting(cx);
+      }
+      NodeState::Connecting => {
+        return this.poll_connecting(cx);
+      }
+      NodeState::Joining => {}
+      NodeState::Running => {
+        // The node is running
+      }
+      NodeState::Leaving => {
+        // The node is leaving
+      }
+      NodeState::Stopped => {
+        // The node is stopped
       }
     }
 
@@ -144,6 +221,7 @@ where
 
   pub fn build(self) -> Node<N, S, P> {
     Node {
+      state: Default::default(),
       config: self.config.expect("Node configuration is required"),
       network: self.network.expect("Network component is required"),
       storage: self.storage.expect("Storage component is required"),

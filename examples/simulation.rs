@@ -12,7 +12,7 @@ use {
   std::rc::Rc,
 };
 
-const NODE_COUNT: usize = 10;
+const NODE_COUNT: usize = 100;
 
 fn main() -> anyhow::Result<()> {
   // setup tracing with default subscriber
@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     simulation.add_node(node);
   }
 
-  for _ in 0..10 {
+  loop {
     simulation.run_tick();
   }
 
