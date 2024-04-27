@@ -2,7 +2,7 @@ use crate::primitives::Pubkey;
 
 pub enum NodeEvent {
   /// The node has successfully dialed and connected to a peer.
-  PeerConnected { peer_id: Pubkey },
+  IncomingEstablished { peer_id: Pubkey },
   /// The node has disconnected from a peer.
   PeerDisconnected { peer_id: Pubkey },
   /// The node has discovered a new peer through the discovery mechanism.

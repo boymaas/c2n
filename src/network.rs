@@ -6,7 +6,7 @@ use {
     primitives::Pubkey,
     types::{NodeAddress, PeerId},
   },
-  std::future::Future,
+  std::{collections::HashSet, future::Future},
   thiserror::Error,
 };
 
@@ -25,18 +25,36 @@ pub type NetworkResult<T> = Result<T, NetworkError>;
 pub trait Network: Future<Output = NetworkEvent> {
   fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress);
   fn connect(&mut self, peer_id: PeerId) -> NetworkResult<()>;
-  fn send(&mut self, peer_id: PeerId, message: Vec<u8>) -> NetworkResult<()>;
+  fn send(
+    &mut self,
+    peer_id: PeerId,
+    message: ProtocolMessage,
+  ) -> NetworkResult<()>;
 }
 
+/// Protocol Messages that can be send over the network
+#[derive(Debug)]
+pub enum ProtocolMessage {
+  /// A random PeerList communicating a set of peers I am connected to.
+  PeerList { peers: HashSet<PeerId> },
+  /// A message that is sent to a peer to exchange data.
+  Data { data: Vec<u8> },
+}
+
+/// Events that can be emitted by a network.
+#[derive(Debug)]
 pub enum NetworkEvent {
   /// Indicates that a dial attempt has succeeded.
   DialSucces { peer_id: Pubkey },
   /// A dial attempt has failed.
   DialFailed { peer_id: Pubkey },
   /// A new peer has connected to the network.
-  PeerConnected { peer_id: Pubkey },
+  IncomingEstablished { peer_id: Pubkey },
   /// A peer has disconnected from the network.
   PeerDisconnected { peer_id: Pubkey },
   /// A message has been received from a peer.
-  MessageReceived { peer_id: Pubkey, message: Vec<u8> },
+  MessageReceived {
+    peer_id: Pubkey,
+    message: ProtocolMessage,
+  },
 }

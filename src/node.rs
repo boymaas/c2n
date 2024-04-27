@@ -1,10 +1,11 @@
 use {
   crate::{
-    network::{Network, NetworkEvent},
+    network::{Network, NetworkEvent, ProtocolMessage},
     node_config::{NodeConfig, NodeConfigBuilder},
     node_events::NodeEvent,
     peer_list_manager::PeerListManager,
     storage::Storage,
+    types::PeerReputation,
   },
   futures::future::FutureExt,
   std::{
@@ -96,9 +97,23 @@ where
     // handle the network event
     if let Poll::Ready(network_event) = self.network.poll_unpin(cx) {
       match network_event {
-        NetworkEvent::PeerConnected { peer_id } => {
-          tracing::debug!("PeerConnected: {:?}", peer_id);
-          return Poll::Ready(NodeEvent::PeerConnected { peer_id });
+        NetworkEvent::IncomingEstablished { peer_id } => {
+          tracing::debug!("IncomingEstablished: {:?}", peer_id);
+          self
+            .peer_list_manager
+            .add_peer(peer_id, PeerReputation::default());
+
+          // get a random list of peers to return
+          let peers = self
+            .peer_list_manager
+            .get_random_peers(self.config.peer_list_manager.exchange_peers);
+
+          self
+            .network
+            .send(peer_id, ProtocolMessage::PeerList { peers })
+            .expect("Failed to send peerlist");
+
+          return Poll::Ready(NodeEvent::IncomingEstablished { peer_id });
         }
         NetworkEvent::PeerDisconnected { peer_id } => {
           tracing::debug!("PeerDisconnected: {:?}", peer_id);
@@ -110,6 +125,10 @@ where
         }
         NetworkEvent::DialSucces { peer_id } => {
           tracing::debug!("DialSucces: {}", peer_id);
+          // add to the peer list manager
+          self
+            .peer_list_manager
+            .add_peer(peer_id, PeerReputation::default());
         }
         NetworkEvent::DialFailed { peer_id } => {
           tracing::error!("DialFailed: {}", peer_id);

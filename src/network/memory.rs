@@ -1,5 +1,5 @@
 use {
-  super::NetworkResult,
+  super::{NetworkResult, ProtocolMessage},
   crate::{
     network::{Network, NetworkEvent},
     primitives::Pubkey,
@@ -43,7 +43,11 @@ impl Network for MemoryNetwork {
     // Simulate adding a peer
   }
 
-  fn send(&mut self, _peer_id: PeerId, _message: Vec<u8>) -> NetworkResult<()> {
+  fn send(
+    &mut self,
+    _peer_id: PeerId,
+    _message: ProtocolMessage,
+  ) -> NetworkResult<()> {
     // Simulate sending a message
     Ok(())
   }

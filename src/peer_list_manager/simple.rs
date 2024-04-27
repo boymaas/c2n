@@ -1,21 +1,21 @@
 use {
   crate::peer_list_manager::{PeerId, PeerListManager, PeerReputation},
   futures::Future,
-  rand::rngs::StdRng,
+  rand::{seq::SliceRandom, RngCore},
   std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     pin::Pin,
     task::{Context, Poll},
   },
 };
 
-pub struct SimplePeerListManager {
+pub struct SimplePeerListManager<R> {
   peers: HashMap<PeerId, PeerReputation>,
-  rng: StdRng,
+  rng: R,
 }
 
-impl SimplePeerListManager {
-  pub fn build(rng: StdRng) -> Self {
+impl<R> SimplePeerListManager<R> {
+  pub fn build(rng: R) -> Self {
     SimplePeerListManager {
       peers: HashMap::new(),
       rng,
@@ -23,7 +23,7 @@ impl SimplePeerListManager {
   }
 }
 
-impl Future for SimplePeerListManager {
+impl<R> Future for SimplePeerListManager<R> {
   type Output = ();
 
   fn poll(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Self::Output> {
@@ -32,7 +32,7 @@ impl Future for SimplePeerListManager {
   }
 }
 
-impl PeerListManager for SimplePeerListManager {
+impl<R: RngCore> PeerListManager for SimplePeerListManager<R> {
   fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation) {
     self.peers.insert(peer_id, reputation);
   }
@@ -54,5 +54,29 @@ impl PeerListManager for SimplePeerListManager {
     if let Some(reputation) = self.peers.get_mut(peer_id) {
       *reputation += reputation_delta;
     }
+  }
+
+  /// Returns a list of random peers
+  fn get_random_peers(&mut self, n: usize) -> HashSet<PeerId> {
+    let peer_ids: Vec<PeerId> = self.peers.keys().cloned().collect();
+    if peer_ids.is_empty() {
+      return Default::default();
+    }
+
+    // n is equal or greater than the number of peers, return all peers
+    if peer_ids.len() <= n {
+      return peer_ids.into_iter().collect();
+    }
+
+    // otherwise, select n random peers
+    let mut selected_peers = std::collections::HashSet::new();
+
+    while selected_peers.len() < n.min(peer_ids.len()) {
+      if let Some(peer_id) = peer_ids.choose(&mut self.rng) {
+        selected_peers.insert(peer_id.clone());
+      }
+    }
+
+    selected_peers
   }
 }

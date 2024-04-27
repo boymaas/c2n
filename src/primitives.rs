@@ -6,7 +6,7 @@ use {
   std::fmt::{Display, Formatter},
 };
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Pubkey {
   key: [u8; 32],
 }
@@ -24,6 +24,12 @@ impl Pubkey {
 
   pub fn into_node_address(&self, addr: Multiaddr) -> NodeAddress {
     (self.clone(), addr)
+  }
+}
+
+impl std::fmt::Debug for Pubkey {
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    write!(f, "{}", self.bs58_encode())
   }
 }
 

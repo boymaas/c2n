@@ -1,5 +1,8 @@
 use {
-  crate::types::{NodeAddress, NodeIdentity, PeerId},
+  crate::{
+    peer_list_manager::PeerListManagerConfig,
+    types::{NodeAddress, NodeIdentity, PeerId},
+  },
   multiaddr::Multiaddr,
   rand::Rng,
   std::collections::HashSet,
@@ -9,6 +12,7 @@ pub struct NodeConfig {
   pub bootnodes: HashSet<NodeAddress>,
   pub identity: NodeIdentity,
   pub address: Multiaddr,
+  pub peer_list_manager: PeerListManagerConfig,
 }
 
 impl NodeConfig {
@@ -34,6 +38,7 @@ pub struct NodeConfigBuilder {
   bootnodes: HashSet<NodeAddress>,
   identity: Option<NodeIdentity>,
   address: Option<Multiaddr>,
+  peer_list_manager: PeerListManagerConfig,
 }
 
 impl Default for NodeConfigBuilder {
@@ -48,6 +53,7 @@ impl NodeConfigBuilder {
       bootnodes: HashSet::new(),
       identity: None,
       address: None,
+      peer_list_manager: PeerListManagerConfig::default(),
     }
   }
 
@@ -76,6 +82,7 @@ impl NodeConfigBuilder {
       bootnodes: self.bootnodes,
       identity: self.identity.expect("Node identity is required"),
       address: self.address.expect("Node address is required"),
+      peer_list_manager: PeerListManagerConfig::default(),
     }
   }
 }
