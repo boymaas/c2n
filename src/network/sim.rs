@@ -2,6 +2,7 @@ use {
   super::{NetworkEvent, NetworkResult, ProtocolMessage},
   crate::{
     network::{Network, NetworkError},
+    primitives::Pubkey,
     types::{NodeAddress, PeerId},
   },
   futures::{
@@ -25,9 +26,10 @@ use {
 };
 
 type RcProtocolMessageQueue = Rc<RefCell<VecDeque<ProtocolMessage>>>;
-type RcNetworkEventQueue = Rc<RefCell<VecDeque<NetworkEvent>>>;
+type RcSimNetworkEventQueue = Rc<RefCell<VecDeque<SimNetworkEvent>>>;
 
 // Configuration for the simulation network.
+#[derive(Clone)]
 pub struct SimNetworkConfig {
   connection_delay: Range<Duration>,
   connection_fail_prob: f64,
@@ -42,69 +44,74 @@ impl Default for SimNetworkConfig {
   }
 }
 
-// Some outcomes
-enum DialerOutcome {
-  Success(PeerId),
-  Failure(PeerId),
+pub enum SimNetworkEvent {
+  InboundEstablished {
+    from: PeerId,
+    queue: RcProtocolMessageQueue,
+  },
+  InboundFailure {
+    from: PeerId,
+  },
+  OutboundEstablished {
+    to: PeerId,
+    queue: RcProtocolMessageQueue,
+  },
+  OutboundFailure {
+    to: PeerId,
+  },
 }
 
-#[derive(Default, Clone)]
+// Some outcomes
+enum DialerOutcome {
+  Success(PeerId, PeerId),
+  Failure(PeerId, PeerId),
+}
+
+#[derive(Clone)]
 pub struct ClientConnection {
+  peer_id: PeerId,
   queue: RcProtocolMessageQueue,
-  events: RcNetworkEventQueue,
+  events: RcSimNetworkEventQueue,
+  config: SimNetworkConfig,
 }
 
 impl ClientConnection {
-  pub fn send_message(&mut self, message: ProtocolMessage) {
+  pub fn send_message(&self, message: ProtocolMessage) {
     self.queue.borrow_mut().push_back(message);
   }
 
-  pub fn push_event(&mut self, event: NetworkEvent) {
+  pub fn push_event(&self, event: SimNetworkEvent) {
     self.events.borrow_mut().push_back(event);
   }
 }
 
 // This is the simulation network responsible for forwarding the entwork
 // messages to the network.
-#[derive(Default)]
-pub struct SimNetwork {
-  clients: HashMap<PeerId, ClientConnection>,
-}
-
-impl SimNetwork {
-  pub fn build() -> Rc<RefCell<Self>> {
-    Rc::new(RefCell::new(Default::default()))
-  }
-
-  pub fn connect(&mut self, peer_id: PeerId) -> Option<ClientConnection> {
-    self.clients.get(&peer_id).cloned()
-  }
-
-  pub fn register_client(
-    &mut self,
-    (peer_id, _): NodeAddress,
-    queue: RcProtocolMessageQueue,
-    events: RcNetworkEventQueue,
-  ) {
-    self
-      .clients
-      .insert(peer_id, ClientConnection { queue, events });
-  }
-}
-
-pub struct SimNetworkClient<R> {
+pub struct SimNetwork<R> {
   rng: R,
-  config: SimNetworkConfig,
-  address: NodeAddress,
-  network: Rc<RefCell<SimNetwork>>,
-  connections: HashMap<PeerId, RcProtocolMessageQueue>,
-  queue: RcProtocolMessageQueue,
-  events: RcNetworkEventQueue,
+  clients: HashMap<PeerId, ClientConnection>,
   dialer: FuturesUnordered<LocalBoxFuture<'static, DialerOutcome>>,
 }
 
-impl<R: Unpin> Future for SimNetworkClient<R> {
-  type Output = NetworkEvent;
+pub struct SimNetworkFuture<R>(pub Rc<RefCell<SimNetwork<R>>>);
+
+impl<R> SimNetworkFuture<R> {
+  pub fn wrap(network: &Rc<RefCell<SimNetwork<R>>>) -> Self {
+    Self(Rc::clone(network))
+  }
+}
+
+impl<R: Unpin> Future for SimNetworkFuture<R> {
+  type Output = ();
+
+  fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    let this = self.get_mut();
+    this.0.borrow_mut().poll_unpin(cx)
+  }
+}
+
+impl<R: Unpin> Future for SimNetwork<R> {
+  type Output = ();
 
   fn poll(
     mut self: Pin<&mut Self>,
@@ -112,10 +119,118 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
   ) -> Poll<Self::Output> {
     let mut this = self.as_mut();
 
-    // if we have an event in our queue, return it as an network event
-    if let Some(event) = this.events.borrow_mut().pop_front() {
-      tracing::debug!("NetworkEvent: {:?}", event);
-      return Poll::Ready(event);
+    while let Poll::Ready(Some(outcome)) = this.dialer.poll_next_unpin(cx) {
+      match outcome {
+        DialerOutcome::Success(from_peer_id, to_peer_id) => {
+          // create a connection
+          let from_connection = this.clients.get(&from_peer_id).unwrap();
+          from_connection.push_event(SimNetworkEvent::OutboundEstablished {
+            to: to_peer_id,
+            queue: Rc::clone(&from_connection.queue),
+          });
+
+          let to_connection = this.clients.get(&to_peer_id).unwrap();
+          to_connection.push_event(SimNetworkEvent::InboundEstablished {
+            from: from_peer_id,
+            queue: Rc::clone(&to_connection.queue),
+          });
+        }
+        DialerOutcome::Failure(from_peer_id, to_peer_id) => {
+          let from_connection = this.clients.get(&from_peer_id).unwrap();
+          from_connection
+            .push_event(SimNetworkEvent::OutboundFailure { to: to_peer_id });
+
+          let to_connection = this.clients.get(&to_peer_id).unwrap();
+          to_connection
+            .push_event(SimNetworkEvent::InboundFailure { from: from_peer_id });
+        }
+      }
+    }
+
+    Poll::Pending
+  }
+}
+
+impl<R> SimNetwork<R> {
+  pub fn build(rng: R) -> Rc<RefCell<Self>> {
+    Rc::new(RefCell::new(Self {
+      rng,
+      clients: Default::default(),
+      dialer: Default::default(),
+    }))
+  }
+
+  pub fn register_client(&mut self, client: &SimNetworkClient<R>) {
+    self.clients.insert(client.peer_id(), client.connection());
+  }
+}
+
+impl<R: Rng> SimNetwork<R> {
+  pub fn connect(&mut self, from_peer_id: PeerId, to_peer_id: PeerId) {
+    // here we create a dialer entry
+    // add to dialer with a random delay
+    let from = self.clients.get(&from_peer_id).unwrap();
+    // let to = self.clients.get(&to_peer_id).unwrap();
+
+    let delay = self.rng.gen_range(from.config.connection_delay.clone());
+    let is_failure = self.rng.gen_bool(from.config.connection_fail_prob);
+    let delayed_dialer_outcome = if is_failure {
+      async move {
+        Delay::new(delay).await;
+        DialerOutcome::Failure(from_peer_id, to_peer_id)
+      }
+      .boxed_local()
+    } else {
+      async move {
+        Delay::new(delay).await;
+        DialerOutcome::Success(from_peer_id, to_peer_id)
+      }
+      .boxed_local()
+    };
+
+    self.dialer.push(delayed_dialer_outcome);
+  }
+}
+
+pub struct SimNetworkClient<R> {
+  rng: R,
+  config: SimNetworkConfig,
+  address: NodeAddress,
+  network: Rc<RefCell<SimNetwork<R>>>,
+  connections: HashMap<PeerId, RcProtocolMessageQueue>,
+  queue: RcProtocolMessageQueue,
+  events: RcSimNetworkEventQueue,
+}
+
+impl<R: Unpin> Future for SimNetworkClient<R> {
+  type Output = NetworkEvent;
+
+  fn poll(
+    mut self: Pin<&mut Self>,
+    _cx: &mut Context<'_>,
+  ) -> Poll<Self::Output> {
+    let mut this = self.as_mut();
+    // check for simnetwork events
+    let maybe_sim_network_event = this.events.borrow_mut().pop_front();
+    if let Some(event) = maybe_sim_network_event {
+      match event {
+        SimNetworkEvent::InboundEstablished { from, queue } => {
+          this.connections.insert(from, queue);
+          return Poll::Ready(NetworkEvent::IncomingEstablished {
+            peer_id: from,
+          });
+        }
+        SimNetworkEvent::InboundFailure { from } => {
+          return Poll::Ready(NetworkEvent::DialFailed { peer_id: from });
+        }
+        SimNetworkEvent::OutboundEstablished { to, queue } => {
+          this.connections.insert(to, queue);
+          return Poll::Ready(NetworkEvent::DialSucces { peer_id: to });
+        }
+        SimNetworkEvent::OutboundFailure { to } => {
+          return Poll::Ready(NetworkEvent::DialFailed { peer_id: to });
+        }
+      }
     }
 
     // if we have protocol message in our queue, return it as a network event
@@ -127,44 +242,9 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
       });
     }
 
-    // poll the dialer
-    while let Poll::Ready(Some(outcome)) = this.dialer.poll_next_unpin(cx) {
-      match outcome {
-        DialerOutcome::Success(peer_id) => {
-          tracing::debug!("DialerOutcome::Success: {}", peer_id);
-
-          let maybe_client_connection =
-            this.network.borrow_mut().connect(peer_id);
-          if let Some(mut client_connection) = maybe_client_connection {
-            // Generate the incoming established event on the
-            // receiving end.
-            client_connection.push_event(NetworkEvent::IncomingEstablished {
-              peer_id: this.peer_id(),
-            });
-            // Register the connection with the client for only the protocol
-            // messages we can send
-            this.connections.insert(peer_id, client_connection.queue);
-            return Poll::Ready(NetworkEvent::DialSucces { peer_id });
-          }
-
-          tracing::warn!(
-            "DialerOutcome::Failure: {} Client is not connected",
-            peer_id
-          );
-          return Poll::Ready(NetworkEvent::DialFailed { peer_id });
-        }
-        DialerOutcome::Failure(peer_id) => {
-          tracing::debug!("DialerOutcome::Failure: {}", peer_id);
-          return Poll::Ready(NetworkEvent::DialFailed { peer_id });
-        }
-      }
-    }
-
     Poll::Pending
   }
 }
-
-use crate::primitives::Pubkey;
 
 impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
   fn send(
@@ -190,24 +270,12 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
 
   fn connect(&mut self, peer_id: PeerId) -> NetworkResult<()> {
     tracing::debug!("Connecting to peer_id: {}", peer_id);
-    // add to dialer with a random delay
-    let delay = self.rng.gen_range(self.config.connection_delay.clone());
-    let is_failure = self.rng.gen_bool(self.config.connection_fail_prob);
-    let delayed_dialer_outcome = if is_failure {
-      async move {
-        Delay::new(delay).await;
-        DialerOutcome::Failure(peer_id)
-      }
-      .boxed_local()
-    } else {
-      async move {
-        Delay::new(delay).await;
-        DialerOutcome::Success(peer_id)
-      }
-      .boxed_local()
-    };
+    if self.connections.contains_key(&peer_id) {
+      return Err(NetworkError::AlreadyConnected(peer_id));
+    }
 
-    self.dialer.push(delayed_dialer_outcome);
+    // trigger the simulation network to connect
+    self.network.borrow_mut().connect(self.peer_id(), peer_id);
 
     Ok(())
   }
@@ -217,34 +285,40 @@ impl<R> SimNetworkClient<R> {
   pub fn peer_id(&self) -> PeerId {
     self.address.0.clone()
   }
+
+  fn connection(&self) -> ClientConnection {
+    ClientConnection {
+      peer_id: self.peer_id(),
+      queue: Rc::clone(&self.queue),
+      events: Rc::clone(&self.events),
+      config: self.config.clone(),
+    }
+  }
 }
 
 impl<R: Rng> SimNetworkClient<R> {
   pub fn build(
     rng: R,
-    network: Rc<RefCell<SimNetwork>>,
+    network: Rc<RefCell<SimNetwork<R>>>,
     address: NodeAddress,
   ) -> Self {
     let queue = Default::default();
     let events = Default::default();
 
-    // register this client with the network so we can send messages
-    network.borrow_mut().register_client(
-      address.clone(),
-      Rc::clone(&queue),
-      Rc::clone(&events),
-    );
-
-    SimNetworkClient {
+    let client = SimNetworkClient {
       // TODO: make this a var
       config: Default::default(),
       rng,
       address,
-      network,
+      network: Rc::clone(&network),
       connections: Default::default(),
       queue,
-      dialer: Default::default(),
       events,
-    }
+    };
+
+    // register this client with the network so we can send messages
+    network.borrow_mut().register_client(&client);
+
+    client
   }
 }

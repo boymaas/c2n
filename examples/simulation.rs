@@ -1,6 +1,6 @@
 use {
   c2n::{
-    network::sim::{SimNetwork, SimNetworkClient},
+    network::sim::{SimNetwork, SimNetworkClient, SimNetworkFuture},
     node::Node,
     node_config::NodeConfigBuilder,
     peer_list_manager::simple::SimplePeerListManager,
@@ -8,6 +8,7 @@ use {
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
+  futures::FutureExt,
   rand::{rngs::StdRng, SeedableRng},
   std::rc::Rc,
 };
@@ -22,9 +23,10 @@ fn main() -> anyhow::Result<()> {
   // it possible to simulate many different scenarios independently.
   let mut rng = StdRng::seed_from_u64(0);
 
-  let mut simulation = SimulationExecutor::new();
+  let network = SimNetwork::build(rng.next_rng_seed());
 
-  let network = SimNetwork::build();
+  let mut simulation =
+    SimulationExecutor::new(Box::pin(SimNetworkFuture::wrap(&network)));
 
   let bootnode_config = NodeConfigBuilder::new()
     .with_unique_identity(&mut rng)
@@ -37,7 +39,7 @@ fn main() -> anyhow::Result<()> {
       bootnode_config.node_address(),
     ))
     .storage(SimStorage::build(rng.clone()))
-    .peer_list_manager(SimplePeerListManager::build(rng.clone()))
+    .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
     .with_node_config(bootnode_config)
     .build();
 
@@ -64,12 +66,12 @@ fn main() -> anyhow::Result<()> {
       .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
       .with_node_config(config)
       .build();
-    simulation.add_node(node);
+    simulation.add_node(Box::pin(node));
   }
 
   loop {
     simulation.run_tick();
   }
 
-  Ok(())
+  // Ok(())
 }

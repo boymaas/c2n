@@ -12,6 +12,8 @@ use {
 
 #[derive(Debug, Error)]
 pub enum NetworkError {
+  #[error("already connected")]
+  AlreadyConnected(PeerId),
   #[error("peer not found")]
   PeerNotFound,
   #[error("not connected")]
