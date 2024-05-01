@@ -1,12 +1,12 @@
-use crate::primitives::Pubkey;
+use crate::{primitives::Pubkey, types::PeerId};
 
 pub enum NodeEvent {
   /// The node has successfully dialed and connected to a peer.
-  IncomingEstablished { peer_id: Pubkey },
+  InboundEstablished { peer_id: PeerId },
   /// The node has disconnected from a peer.
-  PeerDisconnected { peer_id: Pubkey },
+  PeerDisconnected { peer_id: PeerId },
   /// The node has discovered a new peer through the discovery mechanism.
-  Discovered { peer_id: Pubkey },
+  Discovered { peer_id: PeerId },
   /// The node has entered a new state in the lifecycle.
   StateChanged { new_state: NodeState },
   /// Noop event to return from the future and let the runtime

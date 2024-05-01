@@ -3,7 +3,7 @@ use {
     network::{Network, NetworkEvent, ProtocolMessage},
     node_config::{NodeConfig, NodeConfigBuilder},
     node_events::NodeEvent,
-    peer_list_manager::PeerListManager,
+    peer_list_manager::{PeerListManager, PeerListManagerEvent},
     storage::Storage,
     types::PeerReputation,
   },
@@ -63,7 +63,7 @@ impl<N, S, P> Node<N, S, P>
 where
   N: Network + Unpin,
   S: Storage,
-  P: PeerListManager,
+  P: PeerListManager + Unpin,
 {
   /// When the node is in the booting state, it will attempt to connect to the
   /// bootnode and activate the peer list manager to enable connections with
@@ -87,6 +87,7 @@ where
 
   /// The node tries to connect to the bootnodes and tries to discover the
   /// network
+  #[tracing::instrument(skip(self, cx), fields(peer_id=%self.config.identity()))]
   fn poll_connecting(&mut self, cx: &mut Context<'_>) -> Poll<NodeEvent> {
     // check if we have enough peers to join the network
     // if self.peer_list_manager.has_enough_peers() {
@@ -94,11 +95,35 @@ where
     //   self.state = NodeState::Joining;
     // }
 
+    // check if the peerlist manager has anything to do
+    if let Poll::Ready(peer_list_manager_event) =
+      self.peer_list_manager.poll_unpin(cx)
+    {
+      match peer_list_manager_event {
+        // we need to sync the peer list with a peer
+        PeerListManagerEvent::SyncPeerList(peer_id) => {
+          tracing::warn!("Syncing peer list with: {:?}", peer_id);
+          // get a random list of peers to return
+          let peers = self
+            .peer_list_manager
+            .get_random_peers(self.config.peer_list_manager.exchange_peers);
+
+          self
+            .network
+            .send(peer_id, ProtocolMessage::PeerList { peers })
+            .expect("Failed to send peerlist");
+        }
+        PeerListManagerEvent::PeerAdded(_, _) => {}
+        PeerListManagerEvent::PeerRemoved(_) => {}
+        PeerListManagerEvent::PeerReputationUpdated(_, _) => {}
+      }
+    }
+
     // handle the network event
     if let Poll::Ready(network_event) = self.network.poll_unpin(cx) {
       match network_event {
-        NetworkEvent::IncomingEstablished { peer_id } => {
-          tracing::debug!("IncomingEstablished: {:?}", peer_id);
+        NetworkEvent::InboundEstablished { peer_id } => {
+          tracing::debug!("InboundEstablished: {:?}", peer_id);
           self
             .peer_list_manager
             .add_peer(peer_id, PeerReputation::default());
@@ -113,7 +138,7 @@ where
             .send(peer_id, ProtocolMessage::PeerList { peers })
             .expect("Failed to send peerlist");
 
-          return Poll::Ready(NodeEvent::IncomingEstablished { peer_id });
+          return Poll::Ready(NodeEvent::InboundEstablished { peer_id });
         }
         NetworkEvent::PeerDisconnected { peer_id } => {
           tracing::debug!("PeerDisconnected: {:?}", peer_id);
@@ -121,16 +146,29 @@ where
         }
         NetworkEvent::MessageReceived { peer_id, message } => {
           tracing::debug!("MessageReceived from {:?}: {:?}", peer_id, message);
+          match message {
+            ProtocolMessage::PeerList { peers } => {
+              for peer_id in peers {
+                tracing::warn!(
+                  "Adding peer to peer list manager: {:?}",
+                  peer_id
+                );
+                self
+                  .peer_list_manager
+                  .add_peer(peer_id, PeerReputation::default());
+              }
+            }
+          }
           return Poll::Ready(NodeEvent::Noop);
         }
-        NetworkEvent::DialSucces { peer_id } => {
-          tracing::debug!("DialSucces: {}", peer_id);
+        NetworkEvent::OutboundEstablished { peer_id } => {
+          tracing::debug!("OutboundEstablished: {}", peer_id);
           // add to the peer list manager
           self
             .peer_list_manager
             .add_peer(peer_id, PeerReputation::default());
         }
-        NetworkEvent::DialFailed { peer_id } => {
+        NetworkEvent::OutboundFailure { peer_id } => {
           tracing::error!("DialFailed: {}", peer_id);
         }
       }
@@ -239,14 +277,20 @@ where
   }
 
   pub fn build(self) -> Node<N, S, P> {
+    let config = self.config.expect("Node configuration is required");
+    let mut peer_list_manager = self
+      .peer_list_manager
+      .expect("Peer list manager is required");
+
+    // exclude our ientity from the peer list manager
+    peer_list_manager.exclude_peer(config.identity().clone());
+
     Node {
       state: Default::default(),
-      config: self.config.expect("Node configuration is required"),
+      config,
       network: self.network.expect("Network component is required"),
       storage: self.storage.expect("Storage component is required"),
-      peer_list_manager: self
-        .peer_list_manager
-        .expect("Peer list manager is required"),
+      peer_list_manager,
     }
   }
 }

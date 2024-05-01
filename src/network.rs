@@ -39,24 +39,22 @@ pub trait Network: Future<Output = NetworkEvent> {
 pub enum ProtocolMessage {
   /// A random PeerList communicating a set of peers I am connected to.
   PeerList { peers: HashSet<PeerId> },
-  /// A message that is sent to a peer to exchange data.
-  Data { data: Vec<u8> },
 }
 
 /// Events that can be emitted by a network.
 #[derive(Debug)]
 pub enum NetworkEvent {
-  /// Indicates that a dial attempt has succeeded.
-  DialSucces { peer_id: Pubkey },
+  /// Indicates that a outbound dial attempt has succeeded.
+  OutboundEstablished { peer_id: PeerId },
   /// A dial attempt has failed.
-  DialFailed { peer_id: Pubkey },
+  OutboundFailure { peer_id: PeerId },
   /// A new peer has connected to the network.
-  IncomingEstablished { peer_id: Pubkey },
+  InboundEstablished { peer_id: PeerId },
   /// A peer has disconnected from the network.
-  PeerDisconnected { peer_id: Pubkey },
+  PeerDisconnected { peer_id: PeerId },
   /// A message has been received from a peer.
   MessageReceived {
-    peer_id: Pubkey,
+    peer_id: PeerId,
     message: ProtocolMessage,
   },
 }

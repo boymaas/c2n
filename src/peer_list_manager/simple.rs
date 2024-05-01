@@ -1,6 +1,8 @@
 use {
+  super::{PeerListManagerConfig, PeerListManagerEvent},
   crate::peer_list_manager::{PeerId, PeerListManager, PeerReputation},
-  futures::Future,
+  futures::{Future, FutureExt},
+  futures_timer::Delay,
   rand::{seq::SliceRandom, RngCore},
   std::{
     collections::{HashMap, HashSet},
@@ -10,40 +12,60 @@ use {
 };
 
 pub struct SimplePeerListManager<R> {
+  config: PeerListManagerConfig,
   peers: HashMap<PeerId, PeerReputation>,
+  exclude_peers: HashSet<PeerId>,
+  interval: Delay,
   rng: R,
 }
 
 impl<R> SimplePeerListManager<R> {
   pub fn build(rng: R) -> Self {
+    let config: PeerListManagerConfig = Default::default();
     SimplePeerListManager {
+      interval: Delay::new(config.exchange_peers_interval),
+      exclude_peers: Default::default(),
+      config,
       peers: HashMap::new(),
       rng,
     }
   }
 }
 
-impl<R> Future for SimplePeerListManager<R> {
-  type Output = ();
+impl<R: RngCore + Unpin> Future for SimplePeerListManager<R> {
+  type Output = PeerListManagerEvent;
 
   fn poll(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Self::Output> {
-    // Placeholder implementation
-    Poll::Ready(())
+    let this = self.get_mut();
+    // check if the interval fired and select a random peer to request the
+    // peer list from and return the sync event
+    if let Poll::Ready(()) = this.interval.poll_unpin(_cx) {
+      // reset the interval
+      this.interval.reset(this.config.exchange_peers_interval);
+      if let Some(peer_id) = this.get_random_peer() {
+        return Poll::Ready(PeerListManagerEvent::SyncPeerList(peer_id));
+      }
+    }
+
+    Poll::Pending
   }
 }
 
-impl<R: RngCore> PeerListManager for SimplePeerListManager<R> {
+impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
+  fn exclude_peer(&mut self, peer_id: PeerId) {
+    self.exclude_peers.insert(peer_id);
+  }
+
   fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation) {
+    if self.exclude_peers.contains(&peer_id) {
+      tracing::warn!("Peer {} is excluded from the peer list", peer_id);
+      return;
+    }
     self.peers.insert(peer_id, reputation);
   }
 
   fn remove_peer(&mut self, peer_id: &PeerId) {
     self.peers.remove(peer_id);
-  }
-
-  fn get_peer_to_dial(&self) -> Option<PeerId> {
-    // Placeholder implementation: return the first peer in the list
-    self.peers.keys().next().cloned()
   }
 
   fn update_peer_reputation(
@@ -54,6 +76,16 @@ impl<R: RngCore> PeerListManager for SimplePeerListManager<R> {
     if let Some(reputation) = self.peers.get_mut(peer_id) {
       *reputation += reputation_delta;
     }
+  }
+
+  /// Returna a single random peer
+  fn get_random_peer(&mut self) -> Option<PeerId> {
+    let peer_ids: Vec<PeerId> = self.peers.keys().cloned().collect();
+    if peer_ids.is_empty() {
+      return None;
+    }
+
+    Some(peer_ids.choose(&mut self.rng).cloned().unwrap())
   }
 
   /// Returns a list of random peers

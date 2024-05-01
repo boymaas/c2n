@@ -25,8 +25,11 @@ use {
   },
 };
 
-type RcProtocolMessageQueue = Rc<RefCell<VecDeque<ProtocolMessage>>>;
-type RcSimNetworkEventQueue = Rc<RefCell<VecDeque<SimNetworkEvent>>>;
+// TODO: The protocol message should include a from PeerId to indicate the
+// origin of the message. Once this is added, we will be able to track the
+// communication between peers.
+type RcProtocolMessageQueue = Rc<RefCell<VecDeque<(PeerId, ProtocolMessage)>>>;
+type RcSimNetworkEventQueue = Rc<RefCell<VecDeque<(PeerId, SimNetworkEvent)>>>;
 
 // Configuration for the simulation network.
 #[derive(Clone)]
@@ -38,7 +41,7 @@ pub struct SimNetworkConfig {
 impl Default for SimNetworkConfig {
   fn default() -> Self {
     SimNetworkConfig {
-      connection_delay: Duration::from_millis(100)..Duration::from_millis(500),
+      connection_delay: Duration::from_millis(100)..Duration::from_millis(2000),
       connection_fail_prob: 0.1,
     }
   }
@@ -76,12 +79,12 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
-  pub fn send_message(&self, message: ProtocolMessage) {
-    self.queue.borrow_mut().push_back(message);
+  pub fn send_message(&self, from: PeerId, message: ProtocolMessage) {
+    self.queue.borrow_mut().push_back((from, message));
   }
 
-  pub fn push_event(&self, event: SimNetworkEvent) {
-    self.events.borrow_mut().push_back(event);
+  pub fn push_event(&self, from: PeerId, event: SimNetworkEvent) {
+    self.events.borrow_mut().push_back((from, event));
   }
 }
 
@@ -124,25 +127,42 @@ impl<R: Unpin> Future for SimNetwork<R> {
         DialerOutcome::Success(from_peer_id, to_peer_id) => {
           // create a connection
           let from_connection = this.clients.get(&from_peer_id).unwrap();
-          from_connection.push_event(SimNetworkEvent::OutboundEstablished {
-            to: to_peer_id,
-            queue: Rc::clone(&from_connection.queue),
-          });
-
           let to_connection = this.clients.get(&to_peer_id).unwrap();
-          to_connection.push_event(SimNetworkEvent::InboundEstablished {
-            from: from_peer_id,
-            queue: Rc::clone(&to_connection.queue),
-          });
+          from_connection.push_event(
+            to_peer_id,
+            SimNetworkEvent::OutboundEstablished {
+              to: to_peer_id,
+              queue: Rc::clone(&to_connection.queue),
+            },
+          );
+
+          tracing::warn!(
+            "InboundEstablished from: {:?} to: {:?}",
+            from_peer_id,
+            to_peer_id,
+          );
+          let from_connection = this.clients.get(&from_peer_id).unwrap();
+          let to_connection = this.clients.get(&to_peer_id).unwrap();
+          to_connection.push_event(
+            from_peer_id,
+            SimNetworkEvent::InboundEstablished {
+              from: from_peer_id,
+              queue: Rc::clone(&from_connection.queue),
+            },
+          );
         }
         DialerOutcome::Failure(from_peer_id, to_peer_id) => {
           let from_connection = this.clients.get(&from_peer_id).unwrap();
           from_connection
-            .push_event(SimNetworkEvent::OutboundFailure { to: to_peer_id });
+            .push_event(to_peer_id, SimNetworkEvent::OutboundFailure {
+              to: to_peer_id,
+            });
 
           let to_connection = this.clients.get(&to_peer_id).unwrap();
           to_connection
-            .push_event(SimNetworkEvent::InboundFailure { from: from_peer_id });
+            .push_event(from_peer_id, SimNetworkEvent::InboundFailure {
+              from: from_peer_id,
+            });
         }
       }
     }
@@ -212,32 +232,36 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
     let mut this = self.as_mut();
     // check for simnetwork events
     let maybe_sim_network_event = this.events.borrow_mut().pop_front();
-    if let Some(event) = maybe_sim_network_event {
+    if let Some((from_peer_id, event)) = maybe_sim_network_event {
       match event {
         SimNetworkEvent::InboundEstablished { from, queue } => {
+          tracing::warn!("InboundEstablished from: {:?}", from);
           this.connections.insert(from, queue);
-          return Poll::Ready(NetworkEvent::IncomingEstablished {
+          return Poll::Ready(NetworkEvent::InboundEstablished {
             peer_id: from,
           });
         }
         SimNetworkEvent::InboundFailure { from } => {
-          return Poll::Ready(NetworkEvent::DialFailed { peer_id: from });
+          return Poll::Ready(NetworkEvent::OutboundFailure { peer_id: from });
         }
         SimNetworkEvent::OutboundEstablished { to, queue } => {
+          tracing::warn!("OutboundEstablished to: {:?}", to);
           this.connections.insert(to, queue);
-          return Poll::Ready(NetworkEvent::DialSucces { peer_id: to });
+          return Poll::Ready(NetworkEvent::OutboundEstablished {
+            peer_id: to,
+          });
         }
         SimNetworkEvent::OutboundFailure { to } => {
-          return Poll::Ready(NetworkEvent::DialFailed { peer_id: to });
+          return Poll::Ready(NetworkEvent::OutboundFailure { peer_id: to });
         }
       }
     }
 
     // if we have protocol message in our queue, return it as a network event
-    if let Some(message) = this.queue.borrow_mut().pop_front() {
-      tracing::debug!("MessageReceived from: {:?}", message);
+    if let Some((from_peer_id, message)) = this.queue.borrow_mut().pop_front() {
+      tracing::debug!("MessageReceived from: {:?} {:?}", from_peer_id, message);
       return Poll::Ready(NetworkEvent::MessageReceived {
-        peer_id: this.address.0.clone(),
+        peer_id: from_peer_id,
         message,
       });
     }
@@ -259,7 +283,7 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
       .get(&peer_id)
       .ok_or(NetworkError::NotConnected)?;
 
-    connection.borrow_mut().push_back(message);
+    connection.borrow_mut().push_back((self.peer_id(), message));
 
     Ok(())
   }
@@ -269,7 +293,7 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
   }
 
   fn connect(&mut self, peer_id: PeerId) -> NetworkResult<()> {
-    tracing::debug!("Connecting to peer_id: {}", peer_id);
+    tracing::debug!("Connect from {} peer_id: {}", self.peer_id(), peer_id);
     if self.connections.contains_key(&peer_id) {
       return Err(NetworkError::AlreadyConnected(peer_id));
     }

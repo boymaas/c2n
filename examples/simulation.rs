@@ -13,7 +13,7 @@ use {
   std::rc::Rc,
 };
 
-const NODE_COUNT: usize = 100;
+const NODE_COUNT: usize = 10;
 
 fn main() -> anyhow::Result<()> {
   // setup tracing with default subscriber
@@ -21,6 +21,9 @@ fn main() -> anyhow::Result<()> {
 
   // Everything we do is based on a seeded random number generator. This makes
   // it possible to simulate many different scenarios independently.
+
+  // TODO: We need to wrap the RNG into a type that is not cloneable.
+  // However, we can only use next_rng_seed.
   let mut rng = StdRng::seed_from_u64(0);
 
   let network = SimNetwork::build(rng.next_rng_seed());
@@ -34,11 +37,11 @@ fn main() -> anyhow::Result<()> {
     .build();
   let bootnode = Node::builder()
     .network(SimNetworkClient::build(
-      rng.clone(),
+      rng.next_rng_seed(),
       Rc::clone(&network),
       bootnode_config.node_address(),
     ))
-    .storage(SimStorage::build(rng.clone()))
+    .storage(SimStorage::build(rng.next_rng_seed()))
     .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
     .with_node_config(bootnode_config)
     .build();
@@ -58,9 +61,9 @@ fn main() -> anyhow::Result<()> {
       .build();
     let node = Node::builder()
       .network(SimNetworkClient::build(
-        rng.clone(),
+        rng.next_rng_seed(),
         Rc::clone(&network),
-        bootnode_addr.clone(),
+        config.node_address(),
       ))
       .storage(SimStorage::build(rng.next_rng_seed()))
       .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
@@ -68,6 +71,9 @@ fn main() -> anyhow::Result<()> {
       .build();
     simulation.add_node(Box::pin(node));
   }
+
+  // add the bootnode to the simulation
+  simulation.add_node(Box::pin(bootnode));
 
   loop {
     simulation.run_tick();

@@ -30,7 +30,7 @@ impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
     // Attempt to progess the network
     if let Poll::Ready(_) = self.network.as_mut().poll(&mut cx) {
       // The network has completed its operation
-      return;
+      // return;
     }
 
     // Randomize the polling of the nodes and exit on the first exit event
