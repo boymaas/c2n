@@ -56,12 +56,12 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
     self.exclude_peers.insert(peer_id);
   }
 
-  fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation) {
+  fn register_peer(&mut self, peer_id: PeerId) {
     if self.exclude_peers.contains(&peer_id) {
       tracing::warn!("Peer {} is excluded from the peer list", peer_id);
       return;
     }
-    self.peers.insert(peer_id, reputation);
+    self.peers.insert(peer_id, PeerReputation::default());
   }
 
   fn remove_peer(&mut self, peer_id: &PeerId) {
@@ -110,5 +110,15 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
     }
 
     selected_peers
+  }
+
+  fn register_peer_connected(&mut self, peer_id: PeerId) {
+    // Check if the peer is already in the list and move it to the connected
+    // list. If it is not registered, add it to the connected list.
+  }
+
+  fn register_peer_disconnected(&mut self, peer_id: PeerId) {
+    // Check if this peer is in the list, and remove it from the connected list
+    // if present.
   }
 }

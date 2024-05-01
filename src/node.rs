@@ -124,9 +124,7 @@ where
       match network_event {
         NetworkEvent::InboundEstablished { peer_id } => {
           tracing::debug!("InboundEstablished: {:?}", peer_id);
-          self
-            .peer_list_manager
-            .add_peer(peer_id, PeerReputation::default());
+          self.peer_list_manager.register_peer_connected(peer_id);
 
           // get a random list of peers to return
           let peers = self
@@ -153,9 +151,7 @@ where
                   "Adding peer to peer list manager: {:?}",
                   peer_id
                 );
-                self
-                  .peer_list_manager
-                  .add_peer(peer_id, PeerReputation::default());
+                self.peer_list_manager.register_peer(peer_id);
               }
             }
           }
@@ -164,9 +160,7 @@ where
         NetworkEvent::OutboundEstablished { peer_id } => {
           tracing::debug!("OutboundEstablished: {}", peer_id);
           // add to the peer list manager
-          self
-            .peer_list_manager
-            .add_peer(peer_id, PeerReputation::default());
+          self.peer_list_manager.register_peer_connected(peer_id);
         }
         NetworkEvent::OutboundFailure { peer_id } => {
           tracing::error!("DialFailed: {}", peer_id);

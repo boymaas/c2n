@@ -40,12 +40,22 @@ impl Default for PeerListManagerConfig {
 ///
 /// Implementations should base their logic around the PeerListManagerConfig,
 /// which can be used to design the behavior of the component.
+
 pub trait PeerListManager: Future<Output = PeerListManagerEvent> {
-  fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation);
+  /// Called when a peer has been discovered. The PSM will determine if we are
+  /// already connected or if we should connect.
+  fn register_peer(&mut self, peer_id: PeerId);
+  /// Called when a peer has been connected. Based on a Network Event
+  fn register_peer_connected(&mut self, peer_id: PeerId);
+  /// Called when a peer has been disconnected. Based on a Network Event
+  fn register_peer_disconnected(&mut self, peer_id: PeerId);
+
   fn exclude_peer(&mut self, peer_id: PeerId);
   fn get_random_peer(&mut self) -> Option<PeerId>;
   fn get_random_peers(&mut self, n: usize) -> HashSet<PeerId>;
+
   fn remove_peer(&mut self, peer_id: &PeerId);
+
   fn update_peer_reputation(
     &mut self,
     peer_id: &PeerId,
