@@ -32,6 +32,14 @@ impl Default for PeerListManagerConfig {
   }
 }
 
+/// The PeerListManager maintains connections between peer nodes in a network.
+/// It registers new connections with `register_peer_connection`, and tracks
+/// disconnections with `record_peer_disconnection`. The manager ensures the
+/// network stays robust by initiating new connections if below a certain
+/// threshold using `initiate_peer_dialing`.
+///
+/// Implementations should base their logic around the PeerListManagerConfig,
+/// which can be used to design the behavior of the component.
 pub trait PeerListManager: Future<Output = PeerListManagerEvent> {
   fn add_peer(&mut self, peer_id: PeerId, reputation: PeerReputation);
   fn exclude_peer(&mut self, peer_id: PeerId);
