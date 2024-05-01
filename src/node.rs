@@ -100,14 +100,11 @@ where
       self.peer_list_manager.poll_unpin(cx)
     {
       match peer_list_manager_event {
-        // we need to sync the peer list with a peer
         PeerListManagerEvent::SyncPeerList(peer_id) => {
           tracing::warn!("Syncing peer list with: {:?}", peer_id);
-          // get a random list of peers to return
           let peers = self
             .peer_list_manager
             .get_random_peers(self.config.peer_list_manager.exchange_peers);
-
           self
             .network
             .send(peer_id, ProtocolMessage::PeerList { peers })
@@ -116,6 +113,10 @@ where
         PeerListManagerEvent::PeerAdded(_, _) => {}
         PeerListManagerEvent::PeerRemoved(_) => {}
         PeerListManagerEvent::PeerReputationUpdated(_, _) => {}
+        PeerListManagerEvent::Dial(peer_id) => {
+          tracing::warn!("Dialing peer: {:?}", peer_id);
+          self.network.connect(peer_id).expect("Failed to dial peer");
+        }
       }
     }
 
