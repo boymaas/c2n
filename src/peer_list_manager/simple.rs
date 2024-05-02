@@ -103,7 +103,7 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
 
   fn register_peer(&mut self, peer_id: PeerId) {
     if self.exclude_peers.contains(&peer_id) {
-      tracing::warn!("Peer {} is excluded from the peer list", peer_id);
+      tracing::trace!("Peer {} is excluded from the peer list", peer_id);
       return;
     }
     self.peers.entry(peer_id).or_insert_with(PeerInfo::default);

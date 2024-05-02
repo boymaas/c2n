@@ -235,7 +235,6 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
     if let Some((from_peer_id, event)) = maybe_sim_network_event {
       match event {
         SimNetworkEvent::InboundEstablished { from, queue } => {
-          tracing::warn!("InboundEstablished from: {:?}", from);
           this.connections.insert(from, queue);
           return Poll::Ready(NetworkEvent::InboundEstablished {
             peer_id: from,
@@ -245,7 +244,6 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
           return Poll::Ready(NetworkEvent::OutboundFailure { peer_id: from });
         }
         SimNetworkEvent::OutboundEstablished { to, queue } => {
-          tracing::warn!("OutboundEstablished to: {:?}", to);
           this.connections.insert(to, queue);
           return Poll::Ready(NetworkEvent::OutboundEstablished {
             peer_id: to,
@@ -259,7 +257,6 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
 
     // if we have protocol message in our queue, return it as a network event
     if let Some((from_peer_id, message)) = this.queue.borrow_mut().pop_front() {
-      tracing::debug!("MessageReceived from: {:?} {:?}", from_peer_id, message);
       return Poll::Ready(NetworkEvent::MessageReceived {
         peer_id: from_peer_id,
         message,
@@ -276,8 +273,6 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
     peer_id: PeerId,
     message: ProtocolMessage,
   ) -> NetworkResult<()> {
-    tracing::trace!("Sending message: {:?} to peer_id {:?}", message, peer_id);
-
     let connection = self
       .connections
       .get(&peer_id)

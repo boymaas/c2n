@@ -101,7 +101,6 @@ where
     {
       match peer_list_manager_event {
         PeerListManagerEvent::SyncPeerList(peer_id) => {
-          tracing::warn!("Syncing peer list with: {:?}", peer_id);
           let peers = self
             .peer_list_manager
             .get_random_peers(self.config.peer_list_manager.exchange_peers);
@@ -114,7 +113,6 @@ where
         PeerListManagerEvent::PeerRemoved(_) => {}
         PeerListManagerEvent::PeerReputationUpdated(_, _) => {}
         PeerListManagerEvent::Dial(peer_id) => {
-          tracing::warn!("Dialing peer: {:?}", peer_id);
           self.network.connect(peer_id).expect("Failed to dial peer");
         }
       }
@@ -148,10 +146,6 @@ where
           match message {
             ProtocolMessage::PeerList { peers } => {
               for peer_id in peers {
-                tracing::warn!(
-                  "Adding peer to peer list manager: {:?}",
-                  peer_id
-                );
                 self.peer_list_manager.register_peer(peer_id);
               }
             }
@@ -164,7 +158,7 @@ where
           self.peer_list_manager.register_peer_connected(peer_id);
         }
         NetworkEvent::OutboundFailure { peer_id } => {
-          tracing::error!("DialFailed: {}", peer_id);
+          tracing::error!("OutboundFailed: {}", peer_id);
         }
       }
     }
