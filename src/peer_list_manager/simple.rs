@@ -103,10 +103,11 @@ impl<R: RngCore + Unpin> Future for SimplePeerListManager<R> {
       {
         // reset the interval
         // check if we have some peers to dial
-        for (peer_id, peer_info) in this
+        if let Some((peer_id, peer_info)) = this
           .peers
           .iter_mut()
           .filter(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
+          .next()
         {
           peer_info.state = PeerState::Dialing(DialInfo::default());
           return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
