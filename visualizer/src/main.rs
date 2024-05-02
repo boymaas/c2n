@@ -3,7 +3,7 @@ use {
   c2n::types::PeerId,
   c2n_simulator::SimBuilder,
   macroquad::prelude::*,
-  std::collections::HashMap,
+  std::{collections::HashMap, f32},
 };
 
 struct VisNode {
@@ -51,7 +51,7 @@ fn draw_nodes(nodes: &[VisNode], connections: &HashMap<PeerId, Vec<PeerId>>) {
             node.pos.y,
             other_node.pos.x,
             other_node.pos.y,
-            2.0,
+            1.0,
             WHITE,
           );
         }
@@ -71,7 +71,7 @@ fn generate_node_positions(
 
   (0..num_nodes)
     .map(|i| {
-      let angle = std::f32::consts::PI * 2.0 * i as f32 / num_nodes as f32;
+      let angle = f32::consts::PI * 2.0 * i as f32 / num_nodes as f32;
       vec2(
         center_x + angle.cos() * radius,
         center_y + angle.sin() * radius,
@@ -82,7 +82,9 @@ fn generate_node_positions(
 
 #[macroquad::main("Node Visualization")]
 async fn main() {
-  let mut simulation = SimBuilder::with_rng(StdRng::seed_from_u64(0)).build();
+  let mut simulation = SimBuilder::with_rng(StdRng::seed_from_u64(0))
+    .with_node_count(50)
+    .build();
 
   let node_colors = [RED, GREEN, BLUE, YELLOW, MAGENTA, ORANGE, PURPLE];
 

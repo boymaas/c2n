@@ -61,7 +61,7 @@ impl<R: RngCore + SeedableRng + Unpin> SimBuilder<R> {
     // Get the address of the bootnode so that other nodes can connect to it.
     let bootnode_addr = bootnode.config().node_address();
 
-    for idx in 0..self.node_count.unwrap_or(10) {
+    for idx in 0..self.node_count.expect("node count is required") {
       // Each time a unique identity is generated,
       // the random number generator will be seeded at a new position,
       // giving each node a unique starting sequence.

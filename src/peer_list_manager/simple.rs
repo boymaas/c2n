@@ -81,14 +81,36 @@ impl<R: RngCore + Unpin> Future for SimplePeerListManager<R> {
     }
 
     if let Poll::Ready(()) = this.dial_interval.poll_unpin(_cx) {
-      // check if we have some peers to dial
-      for (peer_id, peer_info) in this
+      this.dial_interval.reset(this.config.dial_interval);
+
+      // check how many peers are dialing
+      let in_flight = this
         .peers
-        .iter_mut()
-        .filter(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
+        .values()
+        .filter(|peer_info| matches!(peer_info.state, PeerState::Dialing(_)))
+        .count();
+
+      // check how many peers are connected
+      let connected = this
+        .peers
+        .values()
+        .filter(|peer_info| matches!(peer_info.state, PeerState::Connected))
+        .count();
+
+      // if in range
+      if in_flight < this.config.dial_max_in_last_interval
+        && connected < this.config.max_peers
       {
-        peer_info.state = PeerState::Dialing(DialInfo::default());
-        return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
+        // reset the interval
+        // check if we have some peers to dial
+        for (peer_id, peer_info) in this
+          .peers
+          .iter_mut()
+          .filter(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
+        {
+          peer_info.state = PeerState::Dialing(DialInfo::default());
+          return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
+        }
       }
     }
 
