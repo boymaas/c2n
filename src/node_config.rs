@@ -29,7 +29,7 @@ impl NodeConfig {
   }
 
   pub fn node_address(&self) -> NodeAddress {
-    (self.identity.clone(), self.address.clone())
+    (self.identity, self.address.clone())
   }
 }
 

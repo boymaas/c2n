@@ -28,7 +28,7 @@ impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
     let mut cx = Context::from_waker(&waker);
 
     // Attempt to progess the network
-    if let Poll::Ready(_) = self.network.as_mut().poll(&mut cx) {
+    if self.network.as_mut().poll(&mut cx).is_ready() {
       // The network has completed its operation
       // return;
     }

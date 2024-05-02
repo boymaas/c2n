@@ -17,6 +17,12 @@ pub struct MemoryNetwork {
   events: VecDeque<NetworkEvent>,
 }
 
+impl Default for MemoryNetwork {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryNetwork {
   pub fn new() -> Self {
     MemoryNetwork {

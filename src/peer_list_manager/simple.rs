@@ -105,9 +105,7 @@ impl<R: RngCore + Unpin> Future for SimplePeerListManager<R> {
         // check if we have some peers to dial
         if let Some((peer_id, peer_info)) = this
           .peers
-          .iter_mut()
-          .filter(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
-          .next()
+          .iter_mut().find(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
         {
           peer_info.state = PeerState::Dialing(DialInfo::default());
           return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
@@ -129,7 +127,7 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
       tracing::trace!("Peer {} is excluded from the peer list", peer_id);
       return;
     }
-    self.peers.entry(peer_id).or_insert_with(PeerInfo::default);
+    self.peers.entry(peer_id).or_default();
   }
 
   fn remove_peer(&mut self, peer_id: &PeerId) {
@@ -175,7 +173,7 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
 
     while selected_peers.len() < n.min(peer_ids.len()) {
       if let Some(peer_id) = peer_ids.choose(&mut self.rng) {
-        selected_peers.insert(peer_id.clone());
+        selected_peers.insert(*peer_id);
       }
     }
 

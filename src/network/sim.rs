@@ -302,7 +302,7 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
 
 impl<R> SimNetworkClient<R> {
   pub fn peer_id(&self) -> PeerId {
-    self.address.0.clone()
+    self.address.0
   }
 
   fn connection(&self) -> ClientConnection {
