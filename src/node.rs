@@ -100,14 +100,10 @@ where
       self.peer_list_manager.poll_unpin(cx)
     {
       match peer_list_manager_event {
-        // we need to sync the peer list with a peer
         PeerListManagerEvent::SyncPeerList(peer_id) => {
-          tracing::warn!("Syncing peer list with: {:?}", peer_id);
-          // get a random list of peers to return
           let peers = self
             .peer_list_manager
             .get_random_peers(self.config.peer_list_manager.exchange_peers);
-
           self
             .network
             .send(peer_id, ProtocolMessage::PeerList { peers })
@@ -116,6 +112,9 @@ where
         PeerListManagerEvent::PeerAdded(_, _) => {}
         PeerListManagerEvent::PeerRemoved(_) => {}
         PeerListManagerEvent::PeerReputationUpdated(_, _) => {}
+        PeerListManagerEvent::Dial(peer_id) => {
+          self.network.connect(peer_id).expect("Failed to dial peer");
+        }
       }
     }
 
@@ -124,9 +123,7 @@ where
       match network_event {
         NetworkEvent::InboundEstablished { peer_id } => {
           tracing::debug!("InboundEstablished: {:?}", peer_id);
-          self
-            .peer_list_manager
-            .add_peer(peer_id, PeerReputation::default());
+          self.peer_list_manager.register_peer_connected(peer_id);
 
           // get a random list of peers to return
           let peers = self
@@ -149,13 +146,7 @@ where
           match message {
             ProtocolMessage::PeerList { peers } => {
               for peer_id in peers {
-                tracing::warn!(
-                  "Adding peer to peer list manager: {:?}",
-                  peer_id
-                );
-                self
-                  .peer_list_manager
-                  .add_peer(peer_id, PeerReputation::default());
+                self.peer_list_manager.register_peer(peer_id);
               }
             }
           }
@@ -164,12 +155,10 @@ where
         NetworkEvent::OutboundEstablished { peer_id } => {
           tracing::debug!("OutboundEstablished: {}", peer_id);
           // add to the peer list manager
-          self
-            .peer_list_manager
-            .add_peer(peer_id, PeerReputation::default());
+          self.peer_list_manager.register_peer_connected(peer_id);
         }
         NetworkEvent::OutboundFailure { peer_id } => {
-          tracing::error!("DialFailed: {}", peer_id);
+          tracing::error!("OutboundFailed: {}", peer_id);
         }
       }
     }
