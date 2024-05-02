@@ -67,4 +67,6 @@ pub trait PeerListManager: Future<Output = PeerListManagerEvent> {
     peer_id: &PeerId,
     reputation_delta: PeerReputation,
   );
+
+  fn connections(&self) -> Vec<PeerId>;
 }

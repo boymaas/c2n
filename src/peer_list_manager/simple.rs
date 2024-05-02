@@ -175,4 +175,8 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
       peer.state = PeerState::Disconnected;
     }
   }
+
+  fn connections(&self) -> Vec<PeerId> {
+    self.connected_peers().collect()
+  }
 }

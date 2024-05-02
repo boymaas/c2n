@@ -6,7 +6,7 @@ use {
 
 pub struct SimulationExecutor<N, Node> {
   network: Pin<Box<N>>,
-  nodes: Vec<Pin<Box<Node>>>,
+  pub nodes: Vec<Pin<Box<Node>>>,
 }
 
 impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>

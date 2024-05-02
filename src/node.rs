@@ -5,7 +5,7 @@ use {
     node_events::NodeEvent,
     peer_list_manager::{PeerListManager, PeerListManagerEvent},
     storage::Storage,
-    types::PeerReputation,
+    types::{PeerId, PeerReputation},
   },
   futures::future::FutureExt,
   std::{
@@ -56,6 +56,14 @@ where
 
   pub fn config(&self) -> &NodeConfig {
     &self.config
+  }
+
+  pub fn connections(&self) -> Vec<PeerId> {
+    self.peer_list_manager.connections()
+  }
+
+  pub fn identity(&self) -> &PeerId {
+    self.config.identity()
   }
 }
 
