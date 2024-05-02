@@ -3,14 +3,12 @@ use {
     network::sim::{SimNetwork, SimNetworkClient, SimNetworkFuture},
     node::Node,
     node_config::NodeConfigBuilder,
-    node_events::NodeEvent,
     peer_list_manager::simple::SimplePeerListManager,
     rng::GeneratesRngSeed,
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
-  futures::{Future, FutureExt},
-  rand::{rngs::StdRng, Rng, RngCore, SeedableRng},
+  rand::{RngCore, SeedableRng},
   std::rc::Rc,
 };
 
