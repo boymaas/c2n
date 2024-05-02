@@ -5,7 +5,7 @@ use {
     node_events::NodeEvent,
     peer_list_manager::{PeerListManager, PeerListManagerEvent},
     storage::Storage,
-    types::{PeerId},
+    types::PeerId,
   },
   futures::future::FutureExt,
   std::{

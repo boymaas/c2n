@@ -77,6 +77,14 @@ impl NodeConfigBuilder {
     self
   }
 
+  pub fn with_peer_list_manager_config(
+    mut self,
+    peer_list_manager: PeerListManagerConfig,
+  ) -> Self {
+    self.peer_list_manager = peer_list_manager;
+    self
+  }
+
   pub fn build(self) -> NodeConfig {
     NodeConfig {
       bootnodes: self.bootnodes,

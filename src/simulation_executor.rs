@@ -1,6 +1,6 @@
 use {
   crate::node_events::NodeEvent,
-  futures::{task::Poll, Future},
+  futures::Future,
   std::{pin::Pin, task::Context},
 };
 

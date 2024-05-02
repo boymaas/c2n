@@ -79,6 +79,10 @@ pub struct ClientConnection {
 }
 
 impl ClientConnection {
+  pub fn peer_id(&self) -> PeerId {
+    self.peer_id
+  }
+
   pub fn send_message(&self, from: PeerId, message: ProtocolMessage) {
     self.queue.borrow_mut().push_back((from, message));
   }
@@ -232,7 +236,7 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
     let mut this = self.as_mut();
     // check for simnetwork events
     let maybe_sim_network_event = this.events.borrow_mut().pop_front();
-    if let Some((from_peer_id, event)) = maybe_sim_network_event {
+    if let Some((_from_peer_id, event)) = maybe_sim_network_event {
       match event {
         SimNetworkEvent::InboundEstablished { from, queue } => {
           this.connections.insert(from, queue);
