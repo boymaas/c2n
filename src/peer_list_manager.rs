@@ -23,15 +23,18 @@ pub struct PeerListManagerConfig {
   pub exchange_peers_interval: Duration,
   /// The interval at which new peers will be dialed
   pub dial_interval: Duration,
+  //. Max dial attempts in flight
+  pub dial_max_in_last_interval: usize,
 }
 
 impl Default for PeerListManagerConfig {
   fn default() -> Self {
     PeerListManagerConfig {
-      max_peers: 1000,
-      exchange_peers: 10,
+      max_peers: 10,
+      exchange_peers: 4,
       exchange_peers_interval: Duration::from_secs(2),
       dial_interval: Duration::from_secs(1),
+      dial_max_in_last_interval: 2,
     }
   }
 }
@@ -67,4 +70,6 @@ pub trait PeerListManager: Future<Output = PeerListManagerEvent> {
     peer_id: &PeerId,
     reputation_delta: PeerReputation,
   );
+
+  fn connections(&self) -> Vec<PeerId>;
 }

@@ -1,0 +1,13 @@
+[package]
+name = "c2n-visualizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+c2n = { path = ".." }
+c2n-simulator = { workspace = true }
+futures = { workspace = true }
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+rand = { workspace = true }
+macroquad = "0.4.5"

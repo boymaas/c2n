@@ -5,7 +5,7 @@ use {
     node_events::NodeEvent,
     peer_list_manager::{PeerListManager, PeerListManagerEvent},
     storage::Storage,
-    types::PeerReputation,
+    types::PeerId,
   },
   futures::future::FutureExt,
   std::{
@@ -56,6 +56,14 @@ where
 
   pub fn config(&self) -> &NodeConfig {
     &self.config
+  }
+
+  pub fn connections(&self) -> Vec<PeerId> {
+    self.peer_list_manager.connections()
+  }
+
+  pub fn identity(&self) -> &PeerId {
+    self.config.identity()
   }
 }
 
@@ -272,7 +280,7 @@ where
       .expect("Peer list manager is required");
 
     // exclude our ientity from the peer list manager
-    peer_list_manager.exclude_peer(config.identity().clone());
+    peer_list_manager.exclude_peer(*config.identity());
 
     Node {
       state: Default::default(),

@@ -29,7 +29,7 @@ impl NodeConfig {
   }
 
   pub fn node_address(&self) -> NodeAddress {
-    (self.identity.clone(), self.address.clone())
+    (self.identity, self.address.clone())
   }
 }
 
@@ -74,6 +74,14 @@ impl NodeConfigBuilder {
 
   pub fn with_unique_identity<R: Rng>(mut self, rng: &mut R) -> Self {
     self.identity = Some(NodeIdentity::unique(rng));
+    self
+  }
+
+  pub fn with_peer_list_manager_config(
+    mut self,
+    peer_list_manager: PeerListManagerConfig,
+  ) -> Self {
+    self.peer_list_manager = peer_list_manager;
     self
   }
 

@@ -1,4 +1,4 @@
-use crate::{primitives::Pubkey, types::PeerId};
+use crate::{types::PeerId};
 
 pub enum NodeEvent {
   /// The node has successfully dialed and connected to a peer.

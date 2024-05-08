@@ -7,20 +7,25 @@ use {
   },
   futures::Future,
   std::{
-    collections::VecDeque,
     pin::Pin,
     task::{Context, Poll},
   },
 };
 
 pub struct MemoryNetwork {
-  events: VecDeque<NetworkEvent>,
+  // events: VecDeque<NetworkEvent>,
+}
+
+impl Default for MemoryNetwork {
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 impl MemoryNetwork {
   pub fn new() -> Self {
     MemoryNetwork {
-      events: VecDeque::new(),
+      // events: VecDeque::new(),
     }
   }
 }

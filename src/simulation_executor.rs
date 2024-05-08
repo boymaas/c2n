@@ -1,12 +1,12 @@
 use {
   crate::node_events::NodeEvent,
-  futures::{task::Poll, Future},
+  futures::Future,
   std::{pin::Pin, task::Context},
 };
 
 pub struct SimulationExecutor<N, Node> {
   network: Pin<Box<N>>,
-  nodes: Vec<Pin<Box<Node>>>,
+  pub nodes: Vec<Pin<Box<Node>>>,
 }
 
 impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
@@ -28,7 +28,7 @@ impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
     let mut cx = Context::from_waker(&waker);
 
     // Attempt to progess the network
-    if let Poll::Ready(_) = self.network.as_mut().poll(&mut cx) {
+    if self.network.as_mut().poll(&mut cx).is_ready() {
       // The network has completed its operation
       // return;
     }

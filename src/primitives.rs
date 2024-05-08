@@ -23,7 +23,7 @@ impl Pubkey {
   }
 
   pub fn into_node_address(&self, addr: Multiaddr) -> NodeAddress {
-    (self.clone(), addr)
+    (*self, addr)
   }
 }
 
