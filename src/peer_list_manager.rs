@@ -41,7 +41,7 @@ impl Default for PeerListManagerConfig {
       exchange_peers: 4,
       exchange_peers_interval: Duration::from_secs(2),
       dial_interval: Duration::from_secs(1),
-      churn_interval: Duration::from_secs(5),
+      churn_interval: Duration::from_secs(10),
       dial_max_in_flight: 2,
     }
   }

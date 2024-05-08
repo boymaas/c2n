@@ -8,8 +8,8 @@ use {
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
-  rand::{RngCore, SeedableRng},
-  std::rc::Rc,
+  rand::{Rng, RngCore, SeedableRng},
+  std::{rc::Rc, time::Duration},
 };
 
 pub struct SimBuilder<R> {
@@ -17,7 +17,7 @@ pub struct SimBuilder<R> {
   node_count: Option<usize>,
 }
 
-impl<R: RngCore + SeedableRng + Unpin> SimBuilder<R> {
+impl<R: Rng + SeedableRng + Unpin + 'static> SimBuilder<R> {
   pub fn with_rng(rng: R) -> Self {
     Self {
       rng,
@@ -30,12 +30,7 @@ impl<R: RngCore + SeedableRng + Unpin> SimBuilder<R> {
     self
   }
 
-  pub fn build(
-    mut self,
-  ) -> SimulationExecutor<
-    SimNetworkFuture<R>,
-    Node<SimNetworkClient<R>, SimStorage<R>, SimplePeerListManager<R>>,
-  > {
+  pub fn build(mut self) -> SimulationExecutor<SimNetworkFuture<R>> {
     let network = SimNetwork::build(self.rng.next_rng_seed());
 
     let mut simulation =
@@ -59,6 +54,8 @@ impl<R: RngCore + SeedableRng + Unpin> SimBuilder<R> {
     // Get the address of the bootnode so that other nodes can connect to it.
     let bootnode_addr = bootnode.config().node_address();
 
+    // We start at 1 second to give the bootnode a head start.
+    let time_offset = Duration::from_secs(1);
     for idx in 0..self.node_count.expect("node count is required") {
       // Each time a unique identity is generated,
       // the random number generator will be seeded at a new position,
@@ -79,11 +76,14 @@ impl<R: RngCore + SeedableRng + Unpin> SimBuilder<R> {
         .peer_list_manager(SimplePeerListManager::build(rng.next_rng_seed()))
         .with_node_config(config)
         .build();
-      simulation.add_node(Box::pin(node));
+
+      let duration =
+        time_offset + Duration::from_millis(rng.gen_range(100..2000));
+      simulation.add_node(duration, Box::pin(node));
     }
 
     // add the bootnode to the simulation
-    simulation.add_node(Box::pin(bootnode));
+    simulation.add_node(Duration::ZERO, Box::pin(bootnode));
 
     simulation
   }

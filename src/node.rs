@@ -40,6 +40,26 @@ where
   state: NodeState,
 }
 
+pub trait SimulatableNode: Future<Output = NodeEvent> {
+  fn connections(&self) -> Vec<PeerId>;
+  fn identity(&self) -> &PeerId;
+}
+
+impl<N, S, P> SimulatableNode for Node<N, S, P>
+where
+  N: Network + Unpin,
+  S: Storage + Unpin,
+  P: PeerListManager + Unpin,
+{
+  fn connections(&self) -> Vec<PeerId> {
+    self.peer_list_manager.connections()
+  }
+
+  fn identity(&self) -> &PeerId {
+    self.config.identity()
+  }
+}
+
 impl<N, S, P> Node<N, S, P>
 where
   N: Network,
