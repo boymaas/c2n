@@ -1,6 +1,11 @@
 use {
   crate::{node::SimulatableNode, node_events::NodeEvent},
-  futures::{stream::FuturesUnordered, Future, FutureExt, StreamExt},
+  futures::{
+    stream::{FuturesOrdered, FuturesUnordered},
+    Future,
+    FutureExt,
+    StreamExt,
+  },
   futures_timer::Delay,
   std::{pin::Pin, task::Context, time::Duration},
 };
@@ -18,7 +23,7 @@ impl<N: Future<Output = ()>> SimulationExecutor<N> {
   pub fn new(network: Pin<Box<N>>) -> Self {
     SimulationExecutor {
       network,
-      delayed_join: FuturesUnordered::new(),
+      delayed_join: Default::default(),
       nodes: Vec::new(),
     }
   }

@@ -1,14 +1,13 @@
 use {
   c2n::{
     network::sim::{SimNetwork, SimNetworkClient, SimNetworkFuture},
-    node::Node,
     node_config::NodeConfigBuilder,
     peer_list_manager::simple::SimplePeerListManager,
     rng::GeneratesRngSeed,
     simulation_executor::SimulationExecutor,
     storage::sim::SimStorage,
   },
-  rand::{Rng, RngCore, SeedableRng},
+  rand::{Rng, SeedableRng},
   std::{rc::Rc, time::Duration},
 };
 
@@ -55,7 +54,7 @@ impl<R: Rng + SeedableRng + Unpin + 'static> SimBuilder<R> {
     let bootnode_addr = bootnode.config().node_address();
 
     // We start at 1 second to give the bootnode a head start.
-    let time_offset = Duration::from_secs(1);
+    let mut time_offset = Duration::from_secs(1);
     for idx in 0..self.node_count.expect("node count is required") {
       // Each time a unique identity is generated,
       // the random number generator will be seeded at a new position,
@@ -77,9 +76,9 @@ impl<R: Rng + SeedableRng + Unpin + 'static> SimBuilder<R> {
         .with_node_config(config)
         .build();
 
-      let duration =
-        time_offset + Duration::from_millis(rng.gen_range(100..2000));
-      simulation.add_node(duration, Box::pin(node));
+      time_offset =
+        time_offset + Duration::from_millis(rng.gen_range(100..2_000));
+      simulation.add_node(time_offset, Box::pin(node));
     }
 
     // add the bootnode to the simulation
