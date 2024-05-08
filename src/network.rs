@@ -27,6 +27,7 @@ pub type NetworkResult<T> = Result<T, NetworkError>;
 pub trait Network: Future<Output = NetworkEvent> {
   fn add_peer(&mut self, peer_id: Pubkey, addr: NodeAddress);
   fn connect(&mut self, peer_id: PeerId) -> NetworkResult<()>;
+  fn disconnect(&mut self, peer_id: PeerId) -> NetworkResult<()>;
   fn send(
     &mut self,
     peer_id: PeerId,

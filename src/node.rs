@@ -120,6 +120,9 @@ where
         PeerListManagerEvent::PeerAdded(_, _) => {}
         PeerListManagerEvent::PeerRemoved(_) => {}
         PeerListManagerEvent::PeerReputationUpdated(_, _) => {}
+        PeerListManagerEvent::Diconnect(peer_id) => {
+          self.network.disconnect(peer_id);
+        }
         PeerListManagerEvent::Dial(peer_id) => {
           self.network.connect(peer_id).expect("Failed to dial peer");
         }
@@ -147,6 +150,8 @@ where
         }
         NetworkEvent::PeerDisconnected { peer_id } => {
           tracing::debug!("PeerDisconnected: {:?}", peer_id);
+          // remove from peer_list_manager
+          self.peer_list_manager.register_peer_disconnected(peer_id);
           return Poll::Ready(NodeEvent::PeerDisconnected { peer_id });
         }
         NetworkEvent::MessageReceived { peer_id, message } => {

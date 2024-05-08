@@ -38,6 +38,7 @@ pub struct SimplePeerListManager<R> {
   exclude_peers: HashSet<PeerId>,
   interval: Delay,
   dial_interval: Delay,
+  churn_interval: Delay,
   rng: R,
 }
 
@@ -47,6 +48,7 @@ impl<R> SimplePeerListManager<R> {
     SimplePeerListManager {
       interval: Delay::new(config.exchange_peers_interval),
       dial_interval: Delay::new(config.dial_interval),
+      churn_interval: Delay::new(config.churn_interval),
       exclude_peers: Default::default(),
       config,
       peers: HashMap::new(),
@@ -75,40 +77,54 @@ impl<R: RngCore + Unpin> Future for SimplePeerListManager<R> {
     if let Poll::Ready(()) = this.interval.poll_unpin(_cx) {
       // reset the interval
       this.interval.reset(this.config.exchange_peers_interval);
-      if let Some(peer_id) = this.get_random_peer() {
+      if let Some(peer_id) = this.get_random_connected_peer() {
         return Poll::Ready(PeerListManagerEvent::SyncPeerList(peer_id));
       }
     }
 
+    // check how many peers are dialing
+    let in_flight = this
+      .peers
+      .values()
+      .filter(|peer_info| matches!(peer_info.state, PeerState::Dialing(_)))
+      .count();
+
+    // check how many peers are connected
+    let connected = this
+      .peers
+      .values()
+      .filter(|peer_info| matches!(peer_info.state, PeerState::Connected))
+      .count();
+
     if let Poll::Ready(()) = this.dial_interval.poll_unpin(_cx) {
       this.dial_interval.reset(this.config.dial_interval);
 
-      // check how many peers are dialing
-      let in_flight = this
-        .peers
-        .values()
-        .filter(|peer_info| matches!(peer_info.state, PeerState::Dialing(_)))
-        .count();
-
-      // check how many peers are connected
-      let connected = this
-        .peers
-        .values()
-        .filter(|peer_info| matches!(peer_info.state, PeerState::Connected))
-        .count();
-
       // if in range
-      if in_flight < this.config.dial_max_in_last_interval
-        && connected < this.config.max_peers
-      {
-        // reset the interval
-        // check if we have some peers to dial
-        if let Some((peer_id, peer_info)) = this
-          .peers
-          .iter_mut().find(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
-        {
-          peer_info.state = PeerState::Dialing(DialInfo::default());
-          return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
+      if in_flight < this.config.dial_max_in_flight {
+        if connected < this.config.max_peers {
+          // reset the interval
+          // check if we have some peers to dial
+          if let Some((peer_id, peer_info)) = this
+            .peers
+            .iter_mut()
+            .find(|(_, peer_info)| peer_info.state == PeerState::Disconnected)
+          {
+            peer_info.state = PeerState::Dialing(DialInfo::default());
+            return Poll::Ready(PeerListManagerEvent::Dial(*peer_id));
+          }
+        }
+      }
+    }
+
+    if let Poll::Ready(()) = this.churn_interval.poll_unpin(_cx) {
+      this.churn_interval.reset(this.config.churn_interval);
+
+      // Disconnect from a random peer if the maximum number is reached. This
+      // churn in connections fosters a more robust network topology over
+      // time.
+      if connected >= this.config.max_peers - this.config.churn_threshold {
+        if let Some(peer_id) = this.get_random_connected_peer() {
+          return Poll::Ready(PeerListManagerEvent::Diconnect(peer_id));
         }
       }
     }
@@ -145,7 +161,7 @@ impl<R: RngCore + Unpin> PeerListManager for SimplePeerListManager<R> {
   }
 
   /// Returna a single random peer
-  fn get_random_peer(&mut self) -> Option<PeerId> {
+  fn get_random_connected_peer(&mut self) -> Option<PeerId> {
     // TODO: optimize this
     let peer_ids: Vec<PeerId> = Vec::from_iter(self.connected_peers());
     if peer_ids.is_empty() {

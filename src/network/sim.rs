@@ -62,6 +62,9 @@ pub enum SimNetworkEvent {
   OutboundFailure {
     to: PeerId,
   },
+  Disconnected {
+    from: PeerId,
+  },
 }
 
 // Some outcomes
@@ -214,6 +217,19 @@ impl<R: Rng> SimNetwork<R> {
 
     self.dialer.push(delayed_dialer_outcome);
   }
+
+  pub fn disconnect(&mut self, from_peer_id: PeerId, to_peer_id: PeerId) {
+    // remove the connection
+    let from_connection = self.clients.get(&from_peer_id).unwrap();
+    from_connection.push_event(to_peer_id, SimNetworkEvent::Disconnected {
+      from: to_peer_id,
+    });
+
+    let to_connection = self.clients.get(&to_peer_id).unwrap();
+    to_connection.push_event(from_peer_id, SimNetworkEvent::Disconnected {
+      from: from_peer_id,
+    });
+  }
 }
 
 pub struct SimNetworkClient<R> {
@@ -255,6 +271,10 @@ impl<R: Unpin> Future for SimNetworkClient<R> {
         }
         SimNetworkEvent::OutboundFailure { to } => {
           return Poll::Ready(NetworkEvent::OutboundFailure { peer_id: to });
+        }
+        SimNetworkEvent::Disconnected { from } => {
+          this.connections.remove(&from);
+          return Poll::Ready(NetworkEvent::PeerDisconnected { peer_id: from });
         }
       }
     }
@@ -299,6 +319,20 @@ impl<R: Rng + Unpin> Network for SimNetworkClient<R> {
 
     // trigger the simulation network to connect
     self.network.borrow_mut().connect(self.peer_id(), peer_id);
+
+    Ok(())
+  }
+
+  fn disconnect(&mut self, peer_id: PeerId) -> NetworkResult<()> {
+    tracing::debug!("Disconnect from {} peer_id: {}", self.peer_id(), peer_id);
+    if !self.connections.contains_key(&peer_id) {
+      return Err(NetworkError::NotConnected);
+    }
+
+    self
+      .network
+      .borrow_mut()
+      .disconnect(self.peer_id(), peer_id);
 
     Ok(())
   }
