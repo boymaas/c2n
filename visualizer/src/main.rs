@@ -120,6 +120,10 @@ async fn main() {
 
     draw_nodes(&nodes, &connections);
 
+    let total_connections: usize = connections.values().map(|v| v.len()).sum();
+    let stats_text = format!("Total connections: {}", total_connections);
+    draw_text(&stats_text, 10.0, screen_height - 20.0, 20.0, WHITE);
+
     simulation.run_tick();
 
     next_frame().await

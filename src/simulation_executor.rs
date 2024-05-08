@@ -1,26 +1,37 @@
 use {
-  crate::node_events::NodeEvent,
-  futures::Future,
-  std::{pin::Pin, task::Context},
+  crate::{node::SimulatableNode, node_events::NodeEvent},
+  futures::{
+    stream::{FuturesOrdered, FuturesUnordered},
+    Future,
+    FutureExt,
+    StreamExt,
+  },
+  futures_timer::Delay,
+  std::{pin::Pin, task::Context, time::Duration},
 };
 
-pub struct SimulationExecutor<N, Node> {
+type SimulatableNodeFuture = Pin<Box<dyn SimulatableNode>>;
+
+pub struct SimulationExecutor<N> {
   network: Pin<Box<N>>,
-  pub nodes: Vec<Pin<Box<Node>>>,
+  delayed_join:
+    FuturesUnordered<Pin<Box<dyn Future<Output = SimulatableNodeFuture>>>>,
+  pub nodes: Vec<SimulatableNodeFuture>,
 }
 
-impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
-  SimulationExecutor<N, Node>
-{
+impl<N: Future<Output = ()>> SimulationExecutor<N> {
   pub fn new(network: Pin<Box<N>>) -> Self {
     SimulationExecutor {
       network,
+      delayed_join: Default::default(),
       nodes: Vec::new(),
     }
   }
 
-  pub fn add_node(&mut self, node: Pin<Box<Node>>) {
-    self.nodes.push(node);
+  pub fn add_node(&mut self, delay: Duration, node: SimulatableNodeFuture) {
+    self
+      .delayed_join
+      .push(Delay::new(delay).map(move |_| node).boxed_local());
   }
 
   pub fn run_tick(&mut self) {
@@ -31,6 +42,13 @@ impl<N: Future<Output = ()>, Node: Future<Output = NodeEvent>>
     if self.network.as_mut().poll(&mut cx).is_ready() {
       // The network has completed its operation
       // return;
+    }
+
+    // Attempt to progress any delayed nodes
+    if let std::task::Poll::Ready(Some(node)) =
+      self.delayed_join.poll_next_unpin(&mut cx)
+    {
+      self.nodes.push(node);
     }
 
     // Randomize the polling of the nodes and exit on the first exit event

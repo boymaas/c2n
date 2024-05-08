@@ -11,30 +11,38 @@ pub enum PeerListManagerEvent {
   PeerRemoved(PeerId),
   PeerReputationUpdated(PeerId, PeerReputation),
   SyncPeerList(PeerId),
+  Diconnect(PeerId),
   Dial(PeerId),
 }
 
 /// Configuration for the PeerListManager
 pub struct PeerListManagerConfig {
+  /// Maximum number of peers to maintain
   pub max_peers: usize,
+  /// The peer churn threshold
+  pub churn_threshold: usize,
   /// The amount of peers exchanged on a peer list exchange
   pub exchange_peers: usize,
   /// The interval at which to exchange the peerlists
   pub exchange_peers_interval: Duration,
   /// The interval at which new peers will be dialed
   pub dial_interval: Duration,
+  /// The interval at which new peers will be churned
+  pub churn_interval: Duration,
   //. Max dial attempts in flight
-  pub dial_max_in_last_interval: usize,
+  pub dial_max_in_flight: usize,
 }
 
 impl Default for PeerListManagerConfig {
   fn default() -> Self {
     PeerListManagerConfig {
       max_peers: 10,
+      churn_threshold: 2,
       exchange_peers: 4,
       exchange_peers_interval: Duration::from_secs(2),
       dial_interval: Duration::from_secs(1),
-      dial_max_in_last_interval: 2,
+      churn_interval: Duration::from_secs(10),
+      dial_max_in_flight: 2,
     }
   }
 }
@@ -58,7 +66,7 @@ pub trait PeerListManager: Future<Output = PeerListManagerEvent> {
   fn register_peer_disconnected(&mut self, peer_id: PeerId);
 
   fn exclude_peer(&mut self, peer_id: PeerId);
-  fn get_random_peer(&mut self) -> Option<PeerId>;
+  fn get_random_connected_peer(&mut self) -> Option<PeerId>;
 
   /// returns a list of ranomd peers to which we are connected
   fn get_random_peers(&mut self, n: usize) -> HashSet<PeerId>;

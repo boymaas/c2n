@@ -44,6 +44,10 @@ impl Network for MemoryNetwork {
     Ok(())
   }
 
+  fn disconnect(&mut self, peer_id: PeerId) -> NetworkResult<()> {
+    Ok(())
+  }
+
   fn add_peer(&mut self, _peer_id: Pubkey, _addr: NodeAddress) {
     // Simulate adding a peer
   }
