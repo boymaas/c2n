@@ -77,7 +77,7 @@ impl<R: Rng + SeedableRng + Unpin + 'static> SimBuilder<R> {
         .build();
 
       time_offset =
-        time_offset + Duration::from_millis(rng.gen_range(100..2_000));
+        time_offset + Duration::from_millis(rng.gen_range(100..500));
       simulation.add_node(time_offset, Box::pin(node));
     }
 

@@ -11,6 +11,7 @@ anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 rand = { workspace = true }
 macroquad = "0.4.5"
+fnv = "1.0.7"
 
 [[example]]
 name = "force_directed_graph"

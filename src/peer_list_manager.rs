@@ -36,7 +36,7 @@ pub struct PeerListManagerConfig {
 impl Default for PeerListManagerConfig {
   fn default() -> Self {
     PeerListManagerConfig {
-      max_peers: 10,
+      max_peers: 5,
       churn_threshold: 2,
       exchange_peers: 4,
       exchange_peers_interval: Duration::from_secs(2),
